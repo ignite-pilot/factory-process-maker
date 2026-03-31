@@ -20,9 +20,9 @@ def test_createEngineReturnsEngine():
 
 def test_getDbYieldsSession():
     """getDb 제너레이터가 DB 세션을 yield한다."""
-    from app.core.database import createEngine, getDb
-    engine = createEngine("sqlite:///:memory:")
-    generator = getDb(engine)
+    from app.core.database import initDb, getDb
+    initDb("sqlite:///:memory:")
+    generator = getDb()
     db = next(generator)
     assert db is not None
     # 세션 종료
@@ -34,19 +34,32 @@ def test_getDbYieldsSession():
 
 def test_getDbClosesSessionAfterUse():
     """getDb가 사용 후 세션을 닫는다."""
-    from app.core.database import createEngine, getDb
-    engine = createEngine("sqlite:///:memory:")
-    generator = getDb(engine)
-    db = next(generator)
-    # 세션이 활성 상태인지 확인
-    assert db.is_active
-    # 제너레이터 종료 (finally 블록 실행)
+    from unittest.mock import patch, MagicMock
+    from sqlalchemy.orm import sessionmaker
+    from app.core.database import initDb, getDb
+
+    initDb("sqlite:///:memory:")
+
+    mockDb = MagicMock()
+    mockSessionLocal = MagicMock(return_value=mockDb)
+
+    import app.core.database as dbModule
+    original = dbModule._SessionLocal
+    dbModule._SessionLocal = mockSessionLocal
+
     try:
-        next(generator)
-    except StopIteration:
-        pass
-    # 세션이 닫혔는지 확인
-    assert not db.is_active
+        generator = getDb()
+        db = next(generator)
+        assert db is mockDb
+        # 제너레이터 종료 (finally 블록 실행)
+        try:
+            next(generator)
+        except StopIteration:
+            pass
+        # close()가 호출됐는지 확인
+        mockDb.close.assert_called_once()
+    finally:
+        dbModule._SessionLocal = original
 
 
 def test_baseIsDeclarativeBase():
