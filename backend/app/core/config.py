@@ -2,7 +2,7 @@ import os
 from app.core.secretManager import getSecretValue
 
 SECRET_NAME = "prod/ignite-pilot/mysql-realpilot"
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY") or ""
 UPLOAD_DIR = "uploads"
 FRAMES_DIR = "frames"
 
