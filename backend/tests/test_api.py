@@ -49,3 +49,38 @@ def test_startAnalysis_notFound(client):
 def test_getAnalysisStatus_notFound(client):
     response = client.get("/api/videos/9999/status")
     assert response.status_code == 404
+
+
+def test_updateWorkUnit_notFound(client):
+    response = client.put(
+        "/api/work-units/9999",
+        json={"title": "새 작업명"},
+    )
+    assert response.status_code == 404
+
+
+def test_deleteWorkUnit_notFound(client):
+    response = client.delete("/api/work-units/9999")
+    assert response.status_code == 404
+
+
+def test_reorderWorkUnits_returnsOk(client):
+    response = client.post(
+        "/api/work-units/reorder",
+        json={"orderedIds": []},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+
+def test_createWorkUnit_videoNotFound(client):
+    response = client.post(
+        "/api/videos/9999/work-units",
+        json={
+            "sequence": 1,
+            "title": "테스트 작업",
+            "startTime": 0.0,
+            "endTime": 10.0,
+        },
+    )
+    assert response.status_code == 404
