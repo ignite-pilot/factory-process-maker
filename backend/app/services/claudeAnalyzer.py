@@ -37,7 +37,7 @@ class ClaudeAnalyzer:
 
         try:
             response = self.client.messages.create(
-                model="claude-opus-4-6",
+                model="claude-opus-4-5",
                 max_tokens=512,
                 messages=[
                     {

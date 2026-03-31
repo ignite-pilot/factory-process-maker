@@ -118,7 +118,8 @@ def runAnalysis(jobId: int, videoId: int):
             db.add(workUnit)
             db.flush()
 
-            midFrame = framePaths[round((unitDict["startFrame"] + unitDict["endFrame"]) / 2)]
+            midIdx = min(round((unitDict["startFrame"] + unitDict["endFrame"]) / 2), len(framePaths) - 1)
+            midFrame = framePaths[midIdx]
             frame = WorkUnitFrame(
                 workUnitId=workUnit.id,
                 frameTime=(unitDict["startTime"] + unitDict["endTime"]) / 2,
@@ -140,6 +141,7 @@ def runAnalysis(jobId: int, videoId: int):
         if video:
             video.status = "failed"
         db.commit()
-        raise e
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()

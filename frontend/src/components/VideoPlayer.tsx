@@ -12,7 +12,7 @@ export default function VideoPlayer({ filePath, onTimeUpdate }: VideoPlayerProps
     <div className="w-full bg-black rounded-lg overflow-hidden">
       <video
         ref={videoRef}
-        src={`http://localhost:8000/${filePath}`}
+        src={`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"}/${filePath}`}
         controls
         className="w-full"
         onTimeUpdate={() => onTimeUpdate?.(videoRef.current?.currentTime ?? 0)}
