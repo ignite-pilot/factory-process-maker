@@ -1,13 +1,23 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.core.config import UPLOAD_DIR, FRAMES_DIR
+from app.core.config import UPLOAD_DIR, FRAMES_DIR, getDatabaseUrl
+from app.core.database import initDb, Base
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(FRAMES_DIR, exist_ok=True)
 
-app = FastAPI(title="Process Maker API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    engine = initDb(getDatabaseUrl())
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Process Maker API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,4 +29,6 @@ app.add_middleware(
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/frames", StaticFiles(directory=FRAMES_DIR), name="frames")
 
-# 라우터는 Task 6, 7에서 추가 예정
+from app.api import videos, workUnits  # noqa: E402
+app.include_router(videos.router, prefix="/api")
+app.include_router(workUnits.router, prefix="/api")
