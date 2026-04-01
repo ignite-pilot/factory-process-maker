@@ -1,6 +1,36 @@
+from difflib import SequenceMatcher
 from app.services.claudeAnalyzer import FrameAnalysisResult
 
-MIN_DURATION_SECONDS = 10
+SIMILARITY_THRESHOLD = 0.6
+
+
+def _titleSimilarity(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio()
+
+
+def _jaccardSimilarity(a: list[str], b: list[str]) -> float:
+    setA, setB = set(a), set(b)
+    if not setA and not setB:
+        return 1.0
+    if not setA or not setB:
+        return 0.0
+    return len(setA & setB) / len(setA | setB)
+
+
+def _groupSimilarity(groupA: list[FrameAnalysisResult], groupB: list[FrameAnalysisResult]) -> float:
+    titleA = groupA[0].title
+    titleB = groupB[0].title
+
+    equipmentsA = list({e for r in groupA for e in r.equipments})
+    equipmentsB = list({e for r in groupB for e in r.equipments})
+    materialsA = list({m for r in groupA for m in r.materials})
+    materialsB = list({m for r in groupB for m in r.materials})
+
+    titleScore = _titleSimilarity(titleA, titleB)
+    equipmentScore = _jaccardSimilarity(equipmentsA, equipmentsB)
+    materialScore = _jaccardSimilarity(materialsA, materialsB)
+
+    return titleScore * 0.6 + equipmentScore * 0.2 + materialScore * 0.2
 
 
 class WorkUnitBuilder:
@@ -20,34 +50,19 @@ class WorkUnitBuilder:
                 currentGroup = [result]
         groups.append(currentGroup)
 
-        # 2단계: 짧은 그룹(MIN_DURATION_SECONDS 미만)을 이전 그룹에 병합
-        groups = self._mergeShortGroups(groups)
-
-        # 3단계: 인접한 동일 타이틀 그룹 재병합
-        groups = self._mergeAdjacentSameTitle(groups)
+        # 2단계: 유사도 기반 인접 그룹 병합
+        groups = self._mergeSimilarGroups(groups)
 
         return [self._groupToUnit(g, i + 1) for i, g in enumerate(groups)]
 
-    def _mergeShortGroups(self, groups: list[list[FrameAnalysisResult]]) -> list[list[FrameAnalysisResult]]:
+    def _mergeSimilarGroups(self, groups: list[list[FrameAnalysisResult]]) -> list[list[FrameAnalysisResult]]:
         if len(groups) <= 1:
             return groups
 
         merged = [groups[0]]
         for group in groups[1:]:
-            duration = group[-1].frameTime - group[0].frameTime
-            if duration < MIN_DURATION_SECONDS and merged:
-                merged[-1] = merged[-1] + group
-            else:
-                merged.append(group)
-        return merged
-
-    def _mergeAdjacentSameTitle(self, groups: list[list[FrameAnalysisResult]]) -> list[list[FrameAnalysisResult]]:
-        if len(groups) <= 1:
-            return groups
-
-        merged = [groups[0]]
-        for group in groups[1:]:
-            if group[0].title == merged[-1][0].title:
+            similarity = _groupSimilarity(merged[-1], group)
+            if similarity >= SIMILARITY_THRESHOLD:
                 merged[-1] = merged[-1] + group
             else:
                 merged.append(group)

@@ -1,5 +1,5 @@
 import pytest
-from app.services.workUnitBuilder import WorkUnitBuilder
+from app.services.workUnitBuilder import WorkUnitBuilder, _titleSimilarity, _jaccardSimilarity, _groupSimilarity
 from app.services.claudeAnalyzer import FrameAnalysisResult
 
 
@@ -14,31 +14,38 @@ def makeResult(frameTime: float, title: str, equipments=None, materials=None) ->
 
 
 def test_build_groupsConsecutiveSameTitle():
-    # 각 그룹이 MIN_DURATION_SECONDS(10초) 이상이 되도록 설정
-    results = [makeResult(float(i), "볼트 조립") for i in range(15)]
-    results += [makeResult(float(i + 15), "검사") for i in range(15)]
+    results = [
+        makeResult(0.0, "볼트 조립"),
+        makeResult(1.0, "볼트 조립"),
+        makeResult(2.0, "볼트 조립"),
+        makeResult(3.0, "도장"),
+        makeResult(4.0, "도장"),
+    ]
     builder = WorkUnitBuilder()
     units = builder.build(frameResults=results)
+    # 타이틀이 완전히 다르므로 2개
     assert len(units) == 2
     assert units[0]["title"] == "볼트 조립"
-    assert units[1]["title"] == "검사"
+    assert units[1]["title"] == "도장"
 
 
 def test_build_calculatesDuration():
-    results = [makeResult(float(i), "작업A") for i in range(15)]
-    results += [makeResult(float(i + 15), "작업B") for i in range(15)]
+    results = [
+        makeResult(0.0, "볼트 조립"),
+        makeResult(5.0, "볼트 조립"),
+        makeResult(10.0, "도장"),
+    ]
     builder = WorkUnitBuilder()
     units = builder.build(frameResults=results)
-    assert units[0]["duration"] == pytest.approx(14.0)
     assert units[0]["startTime"] == 0.0
-    assert units[0]["endTime"] == 14.0
+    assert units[0]["endTime"] == 5.0
+    assert units[0]["duration"] == pytest.approx(5.0)
 
 
 def test_build_mergesEquipmentsAndMaterials():
     results = [
-        makeResult(float(i), "작업A", equipments=["드라이버"], materials=["볼트"]) for i in range(8)
-    ] + [
-        makeResult(float(i + 8), "작업A", equipments=["드라이버", "렌치"], materials=["너트"]) for i in range(8)
+        makeResult(0.0, "작업A", equipments=["드라이버"], materials=["볼트"]),
+        makeResult(1.0, "작업A", equipments=["드라이버", "렌치"], materials=["너트"]),
     ]
     builder = WorkUnitBuilder()
     units = builder.build(frameResults=results)
@@ -47,11 +54,11 @@ def test_build_mergesEquipmentsAndMaterials():
 
 
 def test_build_assignsSequence():
-    results = (
-        [makeResult(float(i), "작업A") for i in range(15)]
-        + [makeResult(float(i + 15), "작업B") for i in range(15)]
-        + [makeResult(float(i + 30), "작업C") for i in range(15)]
-    )
+    results = [
+        makeResult(0.0, "부품 조립"),
+        makeResult(1.0, "도장"),
+        makeResult(2.0, "절삭"),
+    ]
     builder = WorkUnitBuilder()
     units = builder.build(frameResults=results)
     assert [u["sequence"] for u in units] == [1, 2, 3]
@@ -63,31 +70,49 @@ def test_build_returnsEmptyForEmptyInput():
     assert units == []
 
 
-def test_build_mergesShortGroupIntoPrevious():
-    # 짧은 그룹(5초)은 이전 그룹에 병합되어야 함
-    results = (
-        [makeResult(float(i), "볼트 조립") for i in range(15)]
-        + [makeResult(float(i + 15), "이동") for i in range(5)]   # 5초 → 병합 대상
-        + [makeResult(float(i + 20), "검사") for i in range(15)]
-    )
+def test_build_mergesSimilarAdjacentGroups():
+    # "범퍼 조립"과 "범퍼 부품 조립"은 타이틀 유사도가 높아 병합되어야 함
+    results = [
+        makeResult(0.0, "범퍼 조립", equipments=["조립 지그"]),
+        makeResult(1.0, "범퍼 조립", equipments=["조립 지그"]),
+        makeResult(2.0, "범퍼 부품 조립", equipments=["조립 지그"]),
+        makeResult(3.0, "범퍼 부품 조립", equipments=["조립 지그"]),
+    ]
     builder = WorkUnitBuilder()
     units = builder.build(frameResults=results)
-    # "이동"(5초)이 이전 "볼트 조립"에 병합되어 총 2개
-    assert len(units) == 2
-    assert units[0]["title"] == "볼트 조립"
-    assert units[1]["title"] == "검사"
-
-
-def test_build_mergesAdjacentSameTitleAfterShortGroup():
-    # A(긴) → B(짧음, 병합됨) → A(긴) 패턴에서 최종적으로 A 하나로 합쳐져야 함
-    results = (
-        [makeResult(float(i), "부품 조립") for i in range(15)]
-        + [makeResult(float(i + 15), "이동") for i in range(5)]   # 짧은 그룹
-        + [makeResult(float(i + 20), "부품 조립") for i in range(15)]
-    )
-    builder = WorkUnitBuilder()
-    units = builder.build(frameResults=results)
-    titles = [u["title"] for u in units]
-    # "이동"이 병합된 후 인접한 "부품 조립"끼리 합쳐져 1개
     assert len(units) == 1
-    assert units[0]["title"] == "부품 조립"
+
+
+def test_build_doesNotMergeDissimilarGroups():
+    # "볼트 체결"과 "도장"은 유사도가 낮아 병합되지 않아야 함
+    results = [
+        makeResult(0.0, "볼트 체결", equipments=["전동드라이버"], materials=["볼트"]),
+        makeResult(1.0, "볼트 체결", equipments=["전동드라이버"], materials=["볼트"]),
+        makeResult(2.0, "도장", equipments=["스프레이건"], materials=["페인트"]),
+        makeResult(3.0, "도장", equipments=["스프레이건"], materials=["페인트"]),
+    ]
+    builder = WorkUnitBuilder()
+    units = builder.build(frameResults=results)
+    assert len(units) == 2
+    assert units[0]["title"] == "볼트 체결"
+    assert units[1]["title"] == "도장"
+
+
+def test_titleSimilarity_similarTitles():
+    assert _titleSimilarity("범퍼 조립", "범퍼 부품 조립") > 0.6
+
+
+def test_titleSimilarity_differentTitles():
+    assert _titleSimilarity("볼트 체결", "도장") < 0.4
+
+
+def test_jaccardSimilarity_overlapping():
+    assert _jaccardSimilarity(["드라이버", "렌치"], ["드라이버", "해머"]) == pytest.approx(1 / 3)
+
+
+def test_jaccardSimilarity_bothEmpty():
+    assert _jaccardSimilarity([], []) == pytest.approx(1.0)
+
+
+def test_jaccardSimilarity_oneEmpty():
+    assert _jaccardSimilarity(["드라이버"], []) == pytest.approx(0.0)
