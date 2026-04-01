@@ -1,5 +1,17 @@
 import axios from "axios"
 
+export interface AnalysisJobResponse {
+  id: number
+  videoId: number
+  status: "queued" | "running" | "completed" | "failed"
+  startedAt: string | null
+  completedAt: string | null
+  currentStep: "extracting" | "analyzing" | "building" | null
+  totalFrames: number | null
+  processedFrames: number | null
+  estimatedSecondsLeft: number | null
+}
+
 export const apiClient = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"}/api`,
 })
@@ -69,7 +81,7 @@ export const videosApi = {
   startAnalysis: (id: number) =>
     apiClient.post(`/videos/${id}/analyze`).then(r => r.data),
   getStatus: (id: number) =>
-    apiClient.get(`/videos/${id}/status`).then(r => r.data),
+    apiClient.get<AnalysisJobResponse>(`/videos/${id}/status`).then(r => r.data),
   listWorkUnits: (id: number) =>
     apiClient.get<WorkUnitResponse[]>(`/videos/${id}/work-units`).then(r => r.data),
   createWorkUnit: (id: number, body: WorkUnitCreateRequest) =>
