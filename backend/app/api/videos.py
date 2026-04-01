@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -12,6 +13,8 @@ from app.services.frameExtractor import FrameExtractor
 from app.services.workUnitBuilder import WorkUnitBuilder
 
 router = APIRouter()
+
+_progressStore: dict[int, dict] = {}
 
 
 @router.post("/videos/upload", response_model=VideoResponse)
@@ -60,7 +63,13 @@ def startAnalysis(videoId: int, backgroundTasks: BackgroundTasks, db: Session = 
     db.refresh(job)
 
     backgroundTasks.add_task(runAnalysis, jobId=job.id, videoId=videoId)
-    return job
+    return AnalysisJobResponse(
+        id=job.id,
+        videoId=job.videoId,
+        status=job.status,
+        startedAt=job.startedAt,
+        completedAt=job.completedAt,
+    )
 
 
 @router.get("/videos/{videoId}/status", response_model=AnalysisJobResponse)
@@ -73,7 +82,30 @@ def getAnalysisStatus(videoId: int, db: Session = Depends(getDb)):
     )
     if not job:
         raise HTTPException(status_code=404, detail="분석 작업을 찾을 수 없습니다")
-    return job
+
+    progress = _progressStore.get(job.id, {})
+    processedFrames = progress.get("processedFrames", 0)
+    totalFrames = progress.get("totalFrames", 0)
+    analyzingStartedAt = progress.get("analyzingStartedAt")
+
+    estimatedSecondsLeft = None
+    if analyzingStartedAt and processedFrames > 0 and totalFrames > processedFrames:
+        elapsed = time.time() - analyzingStartedAt
+        rate = processedFrames / elapsed
+        remaining = totalFrames - processedFrames
+        estimatedSecondsLeft = remaining / rate
+
+    return AnalysisJobResponse(
+        id=job.id,
+        videoId=job.videoId,
+        status=job.status,
+        startedAt=job.startedAt,
+        completedAt=job.completedAt,
+        currentStep=progress.get("currentStep"),
+        totalFrames=totalFrames or None,
+        processedFrames=processedFrames or None,
+        estimatedSecondsLeft=estimatedSecondsLeft,
+    )
 
 
 @router.get("/videos/{videoId}/work-units", response_model=list[WorkUnitResponse])
@@ -96,6 +128,13 @@ def runAnalysis(jobId: int, videoId: int):
         job.startedAt = datetime.utcnow()
         db.commit()
 
+        _progressStore[jobId] = {
+            "currentStep": "extracting",
+            "totalFrames": 0,
+            "processedFrames": 0,
+            "analyzingStartedAt": None,
+        }
+
         extractor = FrameExtractor(videoId=videoId, videoPath=video.filePath)
         duration = extractor.getVideoDuration()
         video.duration = duration
@@ -103,12 +142,19 @@ def runAnalysis(jobId: int, videoId: int):
 
         framePaths = extractor.extractFrames(intervalSeconds=1)
 
+        _progressStore[jobId]["totalFrames"] = len(framePaths)
+        _progressStore[jobId]["currentStep"] = "analyzing"
+        _progressStore[jobId]["analyzingStartedAt"] = time.time()
+
         analyzer = ClaudeAnalyzer()
         frameResults = []
         for i, framePath in enumerate(framePaths):
             frameTime = float(i)
             result = analyzer.analyzeFrame(framePath=framePath, frameTime=frameTime)
             frameResults.append(result)
+            _progressStore[jobId]["processedFrames"] = i + 1
+
+        _progressStore[jobId]["currentStep"] = "building"
 
         builder = WorkUnitBuilder()
         unitDicts = builder.build(frameResults=frameResults)
@@ -144,4 +190,5 @@ def runAnalysis(jobId: int, videoId: int):
         import traceback
         traceback.print_exc()
     finally:
+        _progressStore.pop(jobId, None)
         db.close()
