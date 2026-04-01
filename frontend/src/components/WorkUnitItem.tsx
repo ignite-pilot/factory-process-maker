@@ -3,11 +3,13 @@ import type { WorkUnitResponse, WorkUnitUpdateRequest } from "../api/client"
 
 interface WorkUnitItemProps {
   workUnit: WorkUnitResponse
+  isSelected: boolean
+  onSelect: (id: number) => void
   onUpdate: (id: number, body: WorkUnitUpdateRequest) => void
   onDelete: (id: number) => void
 }
 
-export default function WorkUnitItem({ workUnit, onUpdate, onDelete }: WorkUnitItemProps) {
+export default function WorkUnitItem({ workUnit, isSelected, onSelect, onUpdate, onDelete }: WorkUnitItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(workUnit.title)
   const [startTime, setStartTime] = useState(workUnit.startTime)
@@ -35,10 +37,15 @@ export default function WorkUnitItem({ workUnit, onUpdate, onDelete }: WorkUnitI
   }
 
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm">
+    <div
+      className={`border rounded-lg p-4 bg-white shadow-sm cursor-pointer transition-colors ${
+        isSelected ? "border-blue-500 bg-blue-50" : "hover:border-gray-300"
+      }`}
+      onClick={() => onSelect(workUnit.id)}
+    >
       <div className="flex justify-between items-start mb-2">
         <span className="text-xs text-gray-400">#{workUnit.sequence}</span>
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
           <button
             onClick={() => setIsEditing(!isEditing)}
             className="text-xs text-blue-600 hover:underline"
@@ -55,7 +62,7 @@ export default function WorkUnitItem({ workUnit, onUpdate, onDelete }: WorkUnitI
       </div>
 
       {isEditing ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
           <input
             className="border rounded px-2 py-1 text-sm w-full"
             value={title}
