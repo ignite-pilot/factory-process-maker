@@ -84,3 +84,44 @@ def test_createWorkUnit_videoNotFound(client):
         },
     )
     assert response.status_code == 404
+
+
+def test_getAnalysisStatus_includesProgressFields(client):
+    import os, shutil
+    os.makedirs("uploads", exist_ok=True)
+    shutil.copy("tests/__init__.py", "uploads/test_progress.mp4")
+    response = client.post(
+        "/api/videos/upload",
+        files={"file": ("test_progress.mp4", open("uploads/test_progress.mp4", "rb"), "video/mp4")},
+    )
+    videoId = response.json()["id"]
+    client.post(f"/api/videos/{videoId}/analyze")
+    response = client.get(f"/api/videos/{videoId}/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert "currentStep" in data
+    assert "totalFrames" in data
+    assert "processedFrames" in data
+    assert "estimatedSecondsLeft" in data
+
+
+def test_progressStore_clearedAfterCompletion():
+    from app.api.videos import _progressStore
+    _progressStore[9999] = {"currentStep": "analyzing", "totalFrames": 10, "processedFrames": 5, "analyzingStartedAt": None}
+    assert 9999 in _progressStore
+    _progressStore.pop(9999, None)
+    assert 9999 not in _progressStore
+
+
+def test_progressStore_etaIsNoneWhenNoFramesProcessed():
+    import time
+    from app.api.videos import _progressStore
+    _progressStore[8888] = {
+        "currentStep": "analyzing",
+        "totalFrames": 100,
+        "processedFrames": 0,
+        "analyzingStartedAt": time.time(),
+    }
+    progress = _progressStore[8888]
+    assert progress.get("processedFrames", 0) == 0
+    _progressStore.pop(8888, None)

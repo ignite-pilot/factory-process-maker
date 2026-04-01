@@ -19,6 +19,10 @@ class AnalysisJobResponse(BaseModel):
     status: str
     startedAt: datetime | None
     completedAt: datetime | None
+    currentStep: str | None = None
+    totalFrames: int | None = None
+    processedFrames: int | None = None
+    estimatedSecondsLeft: float | None = None
 
     model_config = {"from_attributes": True}
 
