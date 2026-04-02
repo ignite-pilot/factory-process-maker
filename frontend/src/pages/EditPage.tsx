@@ -25,6 +25,7 @@ export default function EditPage() {
   const videoPlayerRef = useRef<VideoPlayerHandle>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
+  const playRangeEndRef = useRef<number | null>(null)
 
   const handleSelect = (id: number) => {
     setSelectedId(id)
@@ -49,6 +50,23 @@ export default function EditPage() {
     createWorkUnit.mutate({ sequence: maxSeq + 1, title, startTime, endTime })
   }
 
+  const handleSeek = (time: number) => {
+    videoPlayerRef.current?.seekOnly(time)
+  }
+
+  const handlePlayRange = (startTime: number, endTime: number) => {
+    playRangeEndRef.current = endTime
+    videoPlayerRef.current?.seekTo(startTime)
+  }
+
+  const handleTimeUpdate = (time: number) => {
+    setCurrentTime(time)
+    if (playRangeEndRef.current !== null && time >= playRangeEndRef.current) {
+      videoPlayerRef.current?.pause()
+      playRangeEndRef.current = null
+    }
+  }
+
   if (!video) return <p className="p-6 text-gray-500">불러오는 중...</p>
 
   return (
@@ -59,12 +77,14 @@ export default function EditPage() {
           <VideoPlayer
             ref={videoPlayerRef}
             filePath={video.filePath}
-            onTimeUpdate={setCurrentTime}
+            onTimeUpdate={handleTimeUpdate}
           />
           <RangeSelector
             duration={video.duration ?? 0}
             currentTime={currentTime}
             onAdd={handleRangeAdd}
+            onSeek={handleSeek}
+            onPlayRange={handlePlayRange}
           />
         </div>
         <div className="w-1/2 overflow-y-auto">

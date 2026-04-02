@@ -4,6 +4,8 @@ interface RangeSelectorProps {
   duration: number
   currentTime: number
   onAdd: (startTime: number, endTime: number, title: string) => void
+  onSeek: (time: number) => void
+  onPlayRange: (startTime: number, endTime: number) => void
 }
 
 function toMMSS(seconds: number): string {
@@ -18,32 +20,64 @@ function fromMMSS(str: string): number | null {
   return parseInt(match[1]) * 60 + parseInt(match[2])
 }
 
-export default function RangeSelector({ duration, currentTime, onAdd }: RangeSelectorProps) {
+export default function RangeSelector({
+  duration,
+  currentTime,
+  onAdd,
+  onSeek,
+  onPlayRange,
+}: RangeSelectorProps) {
   const [startTime, setStartTime] = useState<number | null>(null)
   const [endTime, setEndTime] = useState<number | null>(null)
   const [title, setTitle] = useState("")
+  const [isDragging, setIsDragging] = useState(false)
   const timelineRef = useRef<HTMLDivElement>(null)
 
-  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    const time = Math.round(ratio * duration * 10) / 10
+  function ratioToTime(clientX: number, rect: DOMRect): number {
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    return Math.round(ratio * duration * 10) / 10
+  }
 
-    if (startTime === null) {
-      setStartTime(time)
-    } else if (endTime === null) {
-      if (time < startTime) {
-        setEndTime(startTime)
-        setStartTime(time)
-      } else {
-        setEndTime(time)
-      }
-    } else {
-      // 3번째 클릭: 초기화 후 새 시작점
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const time = ratioToTime(e.clientX, rect)
+
+    if (startTime === null || endTime !== null) {
+      // idle 또는 둘 다 설정된 경우: 시작점 리셋
       setStartTime(time)
       setEndTime(null)
       setTitle("")
+      onSeek(time)
+    } else {
+      // 시작점만 설정된 경우: 드래그 시작 → 끝점 설정
+      setIsDragging(true)
+      const clampedTime = Math.max(startTime, time)
+      setEndTime(clampedTime)
+      onSeek(clampedTime)
     }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || startTime === null) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const time = ratioToTime(e.clientX, rect)
+    const clampedTime = Math.max(startTime, time)
+    setEndTime(clampedTime)
+    onSeek(clampedTime)
+  }
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const time = ratioToTime(e.clientX, rect)
+    const clampedTime = Math.max(startTime ?? 0, time)
+    setEndTime(clampedTime)
+    onSeek(clampedTime)
+    setIsDragging(false)
+  }
+
+  const handleMouseLeave = () => {
+    if (isDragging) setIsDragging(false)
   }
 
   const handleStartInput = (value: string) => {
@@ -51,18 +85,22 @@ export default function RangeSelector({ duration, currentTime, onAdd }: RangeSel
     if (parsed === null || parsed < 0 || parsed > duration) return
     setStartTime(parsed)
     if (endTime !== null && endTime < parsed) setEndTime(parsed)
+    onSeek(parsed)
   }
 
   const handleEndInput = (value: string) => {
     const parsed = fromMMSS(value)
     if (parsed === null || parsed < 0 || parsed > duration) return
-    setEndTime(Math.max(parsed, startTime ?? 0))
+    const clamped = Math.max(parsed, startTime ?? 0)
+    setEndTime(clamped)
+    onSeek(clamped)
   }
 
   const handleReset = () => {
     setStartTime(null)
     setEndTime(null)
     setTitle("")
+    setIsDragging(false)
   }
 
   const handleSubmit = () => {
@@ -85,37 +123,44 @@ export default function RangeSelector({ duration, currentTime, onAdd }: RangeSel
       <div
         ref={timelineRef}
         data-testid="timeline"
-        onClick={handleTimelineClick}
-        className="relative h-7 bg-slate-900 rounded border border-slate-600 cursor-crosshair mb-2 overflow-hidden"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        className="relative h-7 bg-slate-900 rounded border border-slate-600 cursor-crosshair mb-2 overflow-hidden select-none"
       >
         {/* 현재 재생 위치 */}
         <div
-          className="absolute top-0 w-px h-full bg-slate-400 opacity-50"
+          className="absolute top-0 w-px h-full bg-slate-400 opacity-50 pointer-events-none"
           style={{ left: `${currentRatio * 100}%` }}
         />
         {/* 선택 구간 강조 */}
         {startRatio !== null && endRatio !== null && (
           <div
-            className="absolute top-0 h-full bg-blue-500 opacity-20"
+            className="absolute top-0 h-full bg-blue-500 opacity-20 pointer-events-none"
             style={{ left: `${startRatio * 100}%`, width: `${(endRatio - startRatio) * 100}%` }}
           />
         )}
         {/* 시작 마커 */}
         {startRatio !== null && (
           <div
-            className="absolute top-0 w-0.5 h-full bg-green-500"
+            className="absolute top-0 w-0.5 h-full bg-green-500 pointer-events-none"
             style={{ left: `${startRatio * 100}%` }}
           />
         )}
         {/* 끝 마커 */}
         {endRatio !== null && (
           <div
-            className="absolute top-0 w-0.5 h-full bg-red-500"
+            className="absolute top-0 w-0.5 h-full bg-red-500 pointer-events-none"
             style={{ left: `${endRatio * 100}%` }}
           />
         )}
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs pointer-events-none">
-          1클릭=시작 · 2클릭=끝 · 3클릭=초기화
+          {startTime === null
+            ? "클릭=시작점"
+            : endTime === null
+              ? "드래그 또는 클릭=끝점"
+              : "클릭=초기화 후 재설정"}
         </span>
       </div>
 
@@ -139,9 +184,18 @@ export default function RangeSelector({ duration, currentTime, onAdd }: RangeSel
           className="w-16 bg-slate-900 border border-red-700 rounded px-2 py-1 text-red-300 text-xs text-center"
         />
         {startTime !== null && endTime !== null && (
-          <span className="text-slate-400 text-xs">
-            ({Math.round(endTime - startTime)}초)
-          </span>
+          <>
+            <span className="text-slate-400 text-xs">
+              ({Math.round(endTime - startTime)}초)
+            </span>
+            <button
+              onClick={() => onPlayRange(startTime, endTime)}
+              className="ml-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1"
+              title="구간만 재생"
+            >
+              ▶ 구간 재생
+            </button>
+          </>
         )}
         <button
           onClick={handleReset}

@@ -7,6 +7,9 @@ interface VideoPlayerProps {
 
 export interface VideoPlayerHandle {
   seekTo: (time: number) => void
+  seekOnly: (time: number) => void
+  play: () => void
+  pause: () => void
 }
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
@@ -20,6 +23,13 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           videoRef.current.play()
         }
       },
+      seekOnly: (time: number) => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = time
+        }
+      },
+      play: () => videoRef.current?.play(),
+      pause: () => videoRef.current?.pause(),
     }))
 
     return (

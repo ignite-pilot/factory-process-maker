@@ -3,12 +3,12 @@ import { render, screen, fireEvent } from "@testing-library/react"
 import RangeSelector from "../components/RangeSelector"
 
 // jsdom은 getBoundingClientRect를 지원하지 않으므로 타임라인 엘리먼트에 직접 mock
-function clickTimeline(el: HTMLElement, ratio: number) {
+function mouseDownTimeline(el: HTMLElement, ratio: number) {
   Object.defineProperty(el, "getBoundingClientRect", {
     value: () => ({ left: 0, width: 100, top: 0, bottom: 20, right: 100, height: 20 }),
     configurable: true,
   })
-  fireEvent.click(el, { clientX: ratio * 100 })
+  fireEvent.mouseDown(el, { clientX: ratio * 100 })
 }
 
 describe("RangeSelector — 클릭 마커", () => {
@@ -16,6 +16,8 @@ describe("RangeSelector — 클릭 마커", () => {
     duration: 60,
     currentTime: 0,
     onAdd: vi.fn(),
+    onSeek: vi.fn(),
+    onPlayRange: vi.fn(),
   }
 
   it("처음 렌더링 시 인라인 폼이 보이지 않아야 함", () => {
@@ -26,7 +28,7 @@ describe("RangeSelector — 클릭 마커", () => {
   it("1번째 클릭 시 시작 시간이 설정되고 폼은 아직 보이지 않아야 함", () => {
     render(<RangeSelector {...defaultProps} />)
     const timeline = screen.getByTestId("timeline")
-    clickTimeline(timeline, 0.2) // 60 * 0.2 = 12초
+    mouseDownTimeline(timeline, 0.2) // 60 * 0.2 = 12초
     expect(screen.queryByPlaceholderText("예) 볼트 체결, 도장...")).not.toBeInTheDocument()
     expect(screen.getByDisplayValue("00:12")).toBeInTheDocument()
   })
@@ -34,35 +36,50 @@ describe("RangeSelector — 클릭 마커", () => {
   it("2번째 클릭 시 끝 시간이 설정되고 인라인 폼이 나타나야 함", () => {
     render(<RangeSelector {...defaultProps} />)
     const timeline = screen.getByTestId("timeline")
-    clickTimeline(timeline, 0.2) // 시작 12초
-    clickTimeline(timeline, 0.5) // 끝 30초
+    mouseDownTimeline(timeline, 0.2) // 시작 12초
+    mouseDownTimeline(timeline, 0.5) // 끝 30초
     expect(screen.getByPlaceholderText("예) 볼트 체결, 도장...")).toBeInTheDocument()
   })
 
-  it("끝점 클릭이 시작점보다 앞이면 두 값이 swap되어야 함", () => {
+  it("끝점 클릭이 시작점보다 앞이면 끝 시간이 시작 시간으로 clamp되어야 함", () => {
     render(<RangeSelector {...defaultProps} />)
     const timeline = screen.getByTestId("timeline")
-    clickTimeline(timeline, 0.5) // 시작 30초
-    clickTimeline(timeline, 0.2) // 끝 클릭이지만 12초 < 30초 → swap
+    mouseDownTimeline(timeline, 0.5) // 시작 30초
+    mouseDownTimeline(timeline, 0.2) // 12초 < 30초 → clamp → 끝도 30초
     const inputs = screen.getAllByRole("textbox") as HTMLInputElement[]
-    // 첫 번째 input이 시작(더 작은 값), 두 번째가 끝(더 큰 값)
-    expect(inputs[0].value).toBe("00:12")
+    expect(inputs[0].value).toBe("00:30")
     expect(inputs[1].value).toBe("00:30")
   })
 
   it("3번째 클릭 시 마커가 초기화되고 폼이 사라져야 함", () => {
     render(<RangeSelector {...defaultProps} />)
     const timeline = screen.getByTestId("timeline")
-    clickTimeline(timeline, 0.2)
-    clickTimeline(timeline, 0.5)
-    clickTimeline(timeline, 0.8) // 3번째 → 초기화 후 새 시작점 설정
+    mouseDownTimeline(timeline, 0.2)
+    mouseDownTimeline(timeline, 0.5)
+    mouseDownTimeline(timeline, 0.8) // 3번째 → 초기화 후 새 시작점 설정
     expect(screen.queryByPlaceholderText("예) 볼트 체결, 도장...")).not.toBeInTheDocument()
+  })
+
+  it("시작·끝 설정 시 onSeek가 호출되어야 함", () => {
+    const onSeek = vi.fn()
+    render(<RangeSelector {...defaultProps} onSeek={onSeek} />)
+    const timeline = screen.getByTestId("timeline")
+    mouseDownTimeline(timeline, 0.2) // 시작 12초
+    expect(onSeek).toHaveBeenCalledWith(12)
+    mouseDownTimeline(timeline, 0.5) // 끝 30초
+    expect(onSeek).toHaveBeenCalledWith(30)
   })
 })
 
 describe("RangeSelector — 인라인 폼 제출", () => {
   const onAdd = vi.fn()
-  const defaultProps = { duration: 60, currentTime: 0, onAdd }
+  const defaultProps = {
+    duration: 60,
+    currentTime: 0,
+    onAdd,
+    onSeek: vi.fn(),
+    onPlayRange: vi.fn(),
+  }
 
   function setup() {
     const utils = render(<RangeSelector {...defaultProps} />)
@@ -71,8 +88,8 @@ describe("RangeSelector — 인라인 폼 제출", () => {
       value: () => ({ left: 0, width: 100, top: 0, bottom: 20, right: 100, height: 20 }),
       configurable: true,
     })
-    fireEvent.click(timeline, { clientX: 20 }) // 시작 12초
-    fireEvent.click(timeline, { clientX: 50 }) // 끝 30초
+    fireEvent.mouseDown(timeline, { clientX: 20 }) // 시작 12초
+    fireEvent.mouseDown(timeline, { clientX: 50 }) // 끝 30초
     return utils
   }
 
@@ -104,5 +121,19 @@ describe("RangeSelector — 인라인 폼 제출", () => {
     fireEvent.change(input, { target: { value: "볼트 체결" } })
     fireEvent.click(screen.getByText("+ 작업으로 추가"))
     expect(screen.queryByPlaceholderText("예) 볼트 체결, 도장...")).not.toBeInTheDocument()
+  })
+
+  it("구간 재생 버튼 클릭 시 onPlayRange가 호출되어야 함", () => {
+    const onPlayRange = vi.fn()
+    render(<RangeSelector {...defaultProps} onPlayRange={onPlayRange} />)
+    const timeline = screen.getByTestId("timeline")
+    Object.defineProperty(timeline, "getBoundingClientRect", {
+      value: () => ({ left: 0, width: 100, top: 0, bottom: 20, right: 100, height: 20 }),
+      configurable: true,
+    })
+    fireEvent.mouseDown(timeline, { clientX: 20 }) // 시작 12초
+    fireEvent.mouseDown(timeline, { clientX: 50 }) // 끝 30초
+    fireEvent.click(screen.getByText("▶ 구간 재생"))
+    expect(onPlayRange).toHaveBeenCalledWith(12, 30)
   })
 })

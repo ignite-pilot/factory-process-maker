@@ -154,8 +154,8 @@ describe("EditPage", () => {
       value: () => ({ left: 0, width: 100, top: 0, bottom: 20, right: 100, height: 20 }),
       configurable: true,
     })
-    fireEvent.click(timeline, { clientX: 10 })  // 시작: 120 * 0.1 = 12초
-    fireEvent.click(timeline, { clientX: 50 })  // 끝: 120 * 0.5 = 60초
+    fireEvent.mouseDown(timeline, { clientX: 10 })  // 시작: 120 * 0.1 = 12초
+    fireEvent.mouseDown(timeline, { clientX: 50 })  // 끝: 120 * 0.5 = 60초
     const input = screen.getByPlaceholderText("예) 볼트 체결, 도장...")
     fireEvent.change(input, { target: { value: "볼트 체결" } })
     fireEvent.click(screen.getByText("+ 작업으로 추가"))
