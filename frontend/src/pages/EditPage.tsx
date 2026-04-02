@@ -43,6 +43,10 @@ export default function EditPage() {
   }
 
   const handleAdd = () => {
+    playRangeEndRef.current = null
+    videoPlayerRef.current?.pause()
+    const last = workUnits?.[workUnits.length - 1]
+    videoPlayerRef.current?.seekOnly(last?.endTime ?? 0)
     setSelectedId(null)
     setPanelMode("creator")
   }

@@ -117,6 +117,16 @@ describe("EditPage", () => {
     expect(screen.queryByTestId("timeline")).not.toBeInTheDocument()
   })
 
+  it("작업 추가 버튼 클릭 시 동영상이 일시정지되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    fireEvent.click(screen.getByText("+ 작업 추가"))
+    expect(window.HTMLMediaElement.prototype.pause).toHaveBeenCalled()
+  })
+
   it("WorkUnitCreator에서 작업명 입력 후 추가 시 createWorkUnit.mutate가 호출되어야 함", () => {
     render(
       <BrowserRouter>
