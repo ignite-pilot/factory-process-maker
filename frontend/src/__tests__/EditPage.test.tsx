@@ -133,4 +133,36 @@ describe("EditPage", () => {
       endTime: 10,
     }))
   })
+
+  it("RangeSelector가 렌더링되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    expect(screen.getByTestId("timeline")).toBeInTheDocument()
+  })
+
+  it("RangeSelector에서 구간 추가 시 createWorkUnit.mutate가 호출되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    const timeline = screen.getByTestId("timeline")
+    Object.defineProperty(timeline, "getBoundingClientRect", {
+      value: () => ({ left: 0, width: 100, top: 0, bottom: 20, right: 100, height: 20 }),
+      configurable: true,
+    })
+    fireEvent.click(timeline, { clientX: 10 })  // 시작: 120 * 0.1 = 12초
+    fireEvent.click(timeline, { clientX: 50 })  // 끝: 120 * 0.5 = 60초
+    const input = screen.getByPlaceholderText("예) 볼트 체결, 도장...")
+    fireEvent.change(input, { target: { value: "볼트 체결" } })
+    fireEvent.click(screen.getByText("+ 작업으로 추가"))
+    expect(mutateFn).toHaveBeenCalledWith(expect.objectContaining({
+      title: "볼트 체결",
+      startTime: 12,
+      endTime: 60,
+    }))
+  })
 })

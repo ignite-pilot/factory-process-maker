@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 import VideoPlayer from "../components/VideoPlayer"
 import type { VideoPlayerHandle } from "../components/VideoPlayer"
 import WorkUnitList from "../components/WorkUnitList"
+import RangeSelector from "../components/RangeSelector"
 import { useVideoDetail } from "../hooks/useVideos"
 import {
   useCreateWorkUnit,
@@ -23,6 +24,7 @@ export default function EditPage() {
 
   const videoPlayerRef = useRef<VideoPlayerHandle>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [currentTime, setCurrentTime] = useState(0)
 
   const handleSelect = (id: number) => {
     setSelectedId(id)
@@ -42,6 +44,11 @@ export default function EditPage() {
     })
   }
 
+  const handleRangeAdd = (startTime: number, endTime: number, title: string) => {
+    const maxSeq = workUnits?.reduce((max, wu) => Math.max(max, wu.sequence), 0) ?? 0
+    createWorkUnit.mutate({ sequence: maxSeq + 1, title, startTime, endTime })
+  }
+
   if (!video) return <p className="p-6 text-gray-500">불러오는 중...</p>
 
   return (
@@ -49,7 +56,16 @@ export default function EditPage() {
       <h1 className="text-xl font-bold mb-4 truncate">{video.fileName}</h1>
       <div className="flex gap-6 flex-1 min-h-0">
         <div className="w-1/2 sticky top-6 self-start">
-          <VideoPlayer ref={videoPlayerRef} filePath={video.filePath} />
+          <VideoPlayer
+            ref={videoPlayerRef}
+            filePath={video.filePath}
+            onTimeUpdate={setCurrentTime}
+          />
+          <RangeSelector
+            duration={video.duration ?? 0}
+            currentTime={currentTime}
+            onAdd={handleRangeAdd}
+          />
         </div>
         <div className="w-1/2 overflow-y-auto">
           <WorkUnitList
