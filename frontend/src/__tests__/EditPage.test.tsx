@@ -21,6 +21,7 @@ const mockVideo: VideoResponse = {
   duration: 120,
   status: "done",
   createdAt: "2026-03-31T00:00:00Z",
+  workUnitCount: 1,
 }
 
 const makeWorkUnit = (overrides: Partial<WorkUnitResponse> = {}): WorkUnitResponse => ({
@@ -141,6 +142,45 @@ describe("EditPage", () => {
       </BrowserRouter>
     )
     expect(screen.getByTestId("timeline")).toBeInTheDocument()
+  })
+
+  it("작업 단위 클릭 시 WorkUnitEditor가 표시되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    fireEvent.click(screen.getByText("작업 1"))
+    expect(screen.getByTestId("editor-timeline")).toBeInTheDocument()
+    expect(screen.queryByTestId("timeline")).not.toBeInTheDocument()
+  })
+
+  it("WorkUnitEditor 저장 시 updateWorkUnit.mutate가 호출되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    fireEvent.click(screen.getByText("작업 1"))
+    const titleInput = screen.getByPlaceholderText("작업명")
+    fireEvent.change(titleInput, { target: { value: "수정된 작업" } })
+    fireEvent.click(screen.getByText("저장"))
+    expect(mutateFn).toHaveBeenCalledWith(expect.objectContaining({
+      id: 1,
+      body: expect.objectContaining({ title: "수정된 작업" }),
+    }))
+  })
+
+  it("WorkUnitEditor 닫기 후 RangeSelector가 다시 표시되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    fireEvent.click(screen.getByText("작업 1"))
+    fireEvent.click(screen.getByText("닫기"))
+    expect(screen.getByTestId("timeline")).toBeInTheDocument()
+    expect(screen.queryByTestId("editor-timeline")).not.toBeInTheDocument()
   })
 
   it("RangeSelector에서 구간 추가 시 createWorkUnit.mutate가 호출되어야 함", () => {

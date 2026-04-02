@@ -1,16 +1,16 @@
-import type { WorkUnitResponse, WorkUnitUpdateRequest } from "../api/client"
+import type { WorkUnitResponse } from "../api/client"
 import WorkUnitItem from "./WorkUnitItem"
 
 interface WorkUnitListProps {
   workUnits: WorkUnitResponse[]
   selectedId: number | null
   onSelect: (id: number) => void
-  onUpdate: (id: number, body: WorkUnitUpdateRequest) => void
   onDelete: (id: number) => void
   onAdd: () => void
+  onPlayRange: (startTime: number, endTime: number) => void
 }
 
-export default function WorkUnitList({ workUnits, selectedId, onSelect, onUpdate, onDelete, onAdd }: WorkUnitListProps) {
+export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete, onAdd, onPlayRange }: WorkUnitListProps) {
   return (
     <div className="flex flex-col gap-3 h-full">
       <div className="flex justify-between items-center">
@@ -31,8 +31,8 @@ export default function WorkUnitList({ workUnits, selectedId, onSelect, onUpdate
           workUnit={wu}
           isSelected={wu.id === selectedId}
           onSelect={onSelect}
-          onUpdate={onUpdate}
           onDelete={onDelete}
+          onPlayRange={onPlayRange}
         />
       ))}
     </div>

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 import VideoPlayer from "../components/VideoPlayer"
 import type { VideoPlayerHandle } from "../components/VideoPlayer"
 import WorkUnitList from "../components/WorkUnitList"
+import WorkUnitEditor from "../components/WorkUnitEditor"
 import RangeSelector from "../components/RangeSelector"
 import { useVideoDetail } from "../hooks/useVideos"
 import {
@@ -27,12 +28,13 @@ export default function EditPage() {
   const [currentTime, setCurrentTime] = useState(0)
   const playRangeEndRef = useRef<number | null>(null)
 
+  const selectedWorkUnit = workUnits?.find(wu => wu.id === selectedId) ?? null
+
   const handleSelect = (id: number) => {
-    setSelectedId(id)
     const workUnit = workUnits?.find(wu => wu.id === id)
-    if (workUnit) {
-      videoPlayerRef.current?.seekTo(workUnit.startTime)
-    }
+    if (!workUnit) return
+    setSelectedId(id)
+    handlePlayRange(workUnit.startTime, workUnit.endTime)
   }
 
   const handleAdd = () => {
@@ -67,6 +69,15 @@ export default function EditPage() {
     }
   }
 
+  const handleEditSave = (id: number, body: Parameters<typeof updateWorkUnit.mutate>[0]["body"]) => {
+    updateWorkUnit.mutate({ id, body })
+    setSelectedId(null)
+  }
+
+  const handleEditCancel = () => {
+    setSelectedId(null)
+  }
+
   if (!video) return <p className="p-6 text-gray-500">불러오는 중...</p>
 
   return (
@@ -79,22 +90,34 @@ export default function EditPage() {
             filePath={video.filePath}
             onTimeUpdate={handleTimeUpdate}
           />
-          <RangeSelector
-            duration={video.duration ?? 0}
-            currentTime={currentTime}
-            onAdd={handleRangeAdd}
-            onSeek={handleSeek}
-            onPlayRange={handlePlayRange}
-          />
+          {selectedWorkUnit ? (
+            <WorkUnitEditor
+              workUnit={selectedWorkUnit}
+              duration={video.duration ?? 0}
+              currentTime={currentTime}
+              onSeek={handleSeek}
+              onPlayRange={handlePlayRange}
+              onSave={handleEditSave}
+              onCancel={handleEditCancel}
+            />
+          ) : (
+            <RangeSelector
+              duration={video.duration ?? 0}
+              currentTime={currentTime}
+              onAdd={handleRangeAdd}
+              onSeek={handleSeek}
+              onPlayRange={handlePlayRange}
+            />
+          )}
         </div>
         <div className="w-1/2 overflow-y-auto">
           <WorkUnitList
             workUnits={workUnits ?? []}
             selectedId={selectedId}
             onSelect={handleSelect}
-            onUpdate={(id, body) => updateWorkUnit.mutate({ id, body })}
             onDelete={(id) => deleteWorkUnit.mutate(id)}
             onAdd={handleAdd}
+            onPlayRange={handlePlayRange}
           />
         </div>
       </div>
