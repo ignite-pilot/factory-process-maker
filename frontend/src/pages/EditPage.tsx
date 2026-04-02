@@ -4,6 +4,7 @@ import VideoPlayer from "../components/VideoPlayer"
 import type { VideoPlayerHandle } from "../components/VideoPlayer"
 import WorkUnitList from "../components/WorkUnitList"
 import WorkUnitEditor from "../components/WorkUnitEditor"
+import WorkUnitCreator from "../components/WorkUnitCreator"
 import RangeSelector from "../components/RangeSelector"
 import { useVideoDetail } from "../hooks/useVideos"
 import {
@@ -12,6 +13,8 @@ import {
   useUpdateWorkUnit,
   useWorkUnits,
 } from "../hooks/useWorkUnits"
+
+type LeftPanelMode = "range-selector" | "creator" | "editor"
 
 export default function EditPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,6 +28,7 @@ export default function EditPage() {
 
   const videoPlayerRef = useRef<VideoPlayerHandle>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [panelMode, setPanelMode] = useState<LeftPanelMode>("range-selector")
   const [currentTime, setCurrentTime] = useState(0)
   const playRangeEndRef = useRef<number | null>(null)
 
@@ -34,17 +38,13 @@ export default function EditPage() {
     const workUnit = workUnits?.find(wu => wu.id === id)
     if (!workUnit) return
     setSelectedId(id)
+    setPanelMode("editor")
     handlePlayRange(workUnit.startTime, workUnit.endTime)
   }
 
   const handleAdd = () => {
-    const lastUnit = workUnits?.[workUnits.length - 1]
-    createWorkUnit.mutate({
-      sequence: (lastUnit?.sequence ?? 0) + 1,
-      title: "새 작업",
-      startTime: lastUnit?.endTime ?? 0,
-      endTime: (lastUnit?.endTime ?? 0) + 10,
-    })
+    setSelectedId(null)
+    setPanelMode("creator")
   }
 
   const handleRangeAdd = (startTime: number, endTime: number, title: string) => {
@@ -72,11 +72,27 @@ export default function EditPage() {
   const handleEditSave = (id: number, body: Parameters<typeof updateWorkUnit.mutate>[0]["body"]) => {
     updateWorkUnit.mutate({ id, body })
     setSelectedId(null)
+    setPanelMode("range-selector")
   }
 
   const handleEditCancel = () => {
     setSelectedId(null)
+    setPanelMode("range-selector")
   }
+
+  const handleCreatorCreate = (body: Parameters<typeof createWorkUnit.mutate>[0]) => {
+    createWorkUnit.mutate(body)
+    setPanelMode("range-selector")
+  }
+
+  const handleCreatorCancel = () => {
+    setPanelMode("range-selector")
+  }
+
+  const lastUnit = workUnits?.[workUnits.length - 1]
+  const nextSequence = (lastUnit?.sequence ?? 0) + 1
+  const defaultStartTime = lastUnit?.endTime ?? 0
+  const defaultEndTime = defaultStartTime + 10
 
   if (!video) return <p className="p-6 text-gray-500">불러오는 중...</p>
 
@@ -90,8 +106,9 @@ export default function EditPage() {
             filePath={video.filePath}
             onTimeUpdate={handleTimeUpdate}
           />
-          {selectedWorkUnit ? (
+          {panelMode === "editor" && selectedWorkUnit ? (
             <WorkUnitEditor
+              key={selectedWorkUnit.id}
               workUnit={selectedWorkUnit}
               duration={video.duration ?? 0}
               currentTime={currentTime}
@@ -99,6 +116,18 @@ export default function EditPage() {
               onPlayRange={handlePlayRange}
               onSave={handleEditSave}
               onCancel={handleEditCancel}
+            />
+          ) : panelMode === "creator" ? (
+            <WorkUnitCreator
+              nextSequence={nextSequence}
+              defaultStartTime={defaultStartTime}
+              defaultEndTime={defaultEndTime}
+              duration={video.duration ?? 0}
+              currentTime={currentTime}
+              onSeek={handleSeek}
+              onPlayRange={handlePlayRange}
+              onCreate={handleCreatorCreate}
+              onCancel={handleCreatorCancel}
             />
           ) : (
             <RangeSelector

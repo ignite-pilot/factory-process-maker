@@ -106,33 +106,42 @@ describe("EditPage", () => {
     expect(screen.getByText("불러오는 중...")).toBeInTheDocument()
   })
 
-  it("작업 추가 버튼 클릭시 createWorkUnit.mutate를 호출해야 함", () => {
+  it("작업 추가 버튼 클릭 시 WorkUnitCreator가 표시되어야 함", () => {
     render(
       <BrowserRouter>
         <EditPage />
       </BrowserRouter>
     )
     fireEvent.click(screen.getByText("+ 작업 추가"))
+    expect(screen.getByTestId("creator-timeline")).toBeInTheDocument()
+    expect(screen.queryByTestId("timeline")).not.toBeInTheDocument()
+  })
+
+  it("WorkUnitCreator에서 작업명 입력 후 추가 시 createWorkUnit.mutate가 호출되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <EditPage />
+      </BrowserRouter>
+    )
+    fireEvent.click(screen.getByText("+ 작업 추가"))
+    const titleInput = screen.getByPlaceholderText("예) 볼트 체결, 도장...")
+    fireEvent.change(titleInput, { target: { value: "새 작업" } })
+    fireEvent.click(screen.getByTestId("creator-submit"))
     expect(mutateFn).toHaveBeenCalledWith(expect.objectContaining({
       title: "새 작업",
     }))
   })
 
-  it("작업 단위가 없을 때 작업 추가 시 sequence 1로 생성해야 함", () => {
-    vi.mocked(useWorkUnitsModule).useWorkUnits.mockReturnValue({
-      data: [] as WorkUnitResponse[],
-    } as ReturnType<typeof useWorkUnitsModule.useWorkUnits>)
+  it("WorkUnitCreator 닫기 후 RangeSelector가 표시되어야 함", () => {
     render(
       <BrowserRouter>
         <EditPage />
       </BrowserRouter>
     )
     fireEvent.click(screen.getByText("+ 작업 추가"))
-    expect(mutateFn).toHaveBeenCalledWith(expect.objectContaining({
-      sequence: 1,
-      startTime: 0,
-      endTime: 10,
-    }))
+    fireEvent.click(screen.getByText("닫기"))
+    expect(screen.getByTestId("timeline")).toBeInTheDocument()
+    expect(screen.queryByTestId("creator-timeline")).not.toBeInTheDocument()
   })
 
   it("RangeSelector가 렌더링되어야 함", () => {
