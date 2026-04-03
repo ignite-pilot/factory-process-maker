@@ -22,6 +22,8 @@ const mockVideo: VideoResponse = {
   status: "done",
   createdAt: "2026-03-31T00:00:00Z",
   workUnitCount: 1,
+  processName: null,
+  description: null,
 }
 
 const makeWorkUnit = (overrides: Partial<WorkUnitResponse> = {}): WorkUnitResponse => ({

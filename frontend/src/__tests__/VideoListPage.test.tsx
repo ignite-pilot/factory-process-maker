@@ -21,6 +21,8 @@ const mockVideos: VideoResponse[] = [
     status: "pending",
     createdAt: "2026-03-31T00:00:00Z",
     workUnitCount: 0,
+    processName: null,
+    description: null,
   },
   {
     id: 2,
@@ -30,6 +32,8 @@ const mockVideos: VideoResponse[] = [
     status: "done",
     createdAt: "2026-03-31T00:00:00Z",
     workUnitCount: 3,
+    processName: null,
+    description: null,
   },
 ]
 
