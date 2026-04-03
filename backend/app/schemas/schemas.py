@@ -9,6 +9,7 @@ class VideoResponse(BaseModel):
     duration: float | None
     status: str
     createdAt: datetime
+    workUnitCount: int = 0
 
     model_config = {"from_attributes": True}
 

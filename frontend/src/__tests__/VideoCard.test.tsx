@@ -36,6 +36,10 @@ describe("VideoCard", () => {
       }),
       isPending: false,
     } as any)
+    vi.mocked(useVideosModule).useDeleteVideo.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any)
   })
 
   it("렌더링되어야 함", () => {
@@ -162,6 +166,51 @@ describe("VideoCard", () => {
     expect(screen.queryByText("분석 시작")).not.toBeInTheDocument()
     expect(screen.queryByText("편집")).not.toBeInTheDocument()
     expect(screen.queryByText("진행 확인")).not.toBeInTheDocument()
+  })
+
+  it("삭제 버튼이 항상 표시되어야 함", () => {
+    render(
+      <BrowserRouter>
+        <VideoCard video={mockVideo} />
+      </BrowserRouter>
+    )
+    expect(screen.getByTitle("삭제")).toBeInTheDocument()
+  })
+
+  it("삭제 버튼 클릭 후 confirm 승인 시 삭제 뮤테이션을 호출해야 함", () => {
+    const deleteMutate = vi.fn()
+    vi.mocked(useVideosModule).useDeleteVideo.mockReturnValue({
+      mutate: deleteMutate,
+      isPending: false,
+    } as any)
+    vi.spyOn(window, "confirm").mockReturnValue(true)
+
+    render(
+      <BrowserRouter>
+        <VideoCard video={mockVideo} />
+      </BrowserRouter>
+    )
+
+    fireEvent.click(screen.getByTitle("삭제"))
+    expect(deleteMutate).toHaveBeenCalledWith(mockVideo.id)
+  })
+
+  it("삭제 버튼 클릭 후 confirm 취소 시 삭제 뮤테이션을 호출하지 않아야 함", () => {
+    const deleteMutate = vi.fn()
+    vi.mocked(useVideosModule).useDeleteVideo.mockReturnValue({
+      mutate: deleteMutate,
+      isPending: false,
+    } as any)
+    vi.spyOn(window, "confirm").mockReturnValue(false)
+
+    render(
+      <BrowserRouter>
+        <VideoCard video={mockVideo} />
+      </BrowserRouter>
+    )
+
+    fireEvent.click(screen.getByTitle("삭제"))
+    expect(deleteMutate).not.toHaveBeenCalled()
   })
 
   it("분석 중일 때 분석 시작 버튼이 비활성화되어야 함", () => {

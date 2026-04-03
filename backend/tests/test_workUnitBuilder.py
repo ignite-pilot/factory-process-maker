@@ -5,6 +5,8 @@ from app.services.workUnitBuilder import (
     _jaccardSimilarity,
     _groupSimilarity,
     _groupDuration,
+    _synonymKey,
+    _extractMainMaterial,
     MIN_DURATION_SECONDS,
 )
 from app.services.claudeAnalyzer import FrameAnalysisResult
@@ -245,3 +247,69 @@ def test_jaccardSimilarity_bothEmpty():
 
 def test_jaccardSimilarity_oneEmpty():
     assert _jaccardSimilarity(["드라이버"], []) == pytest.approx(0.0)
+
+
+# ─── 유의어 병합 ────────────────────────────────────────────────────────────────
+
+def test_synonymKey_returnsSameKeyForSynonyms():
+    assert _synonymKey("부품 취출") == _synonymKey("부품 선택")
+    assert _synonymKey("부품 준비") == _synonymKey("부품 픽업")
+
+def test_synonymKey_returnsSelfForUnknown():
+    assert _synonymKey("용접") == "용접"
+
+def test_titleSimilarity_synonymsAreFullScore():
+    assert _titleSimilarity("부품 취출", "부품 선택") == pytest.approx(1.0)
+    assert _titleSimilarity("부품 준비", "소재 준비") == pytest.approx(1.0)
+
+def test_build_mergesSynonymTitlesInSameGroup():
+    # "부품 취출"과 "부품 선택"은 유의어 → 같은 그룹으로 묶여야 함
+    results = [
+        makeResult(0.0, "부품 준비"),
+        makeResult(1.0, "부품 취출"),
+        makeResult(2.0, "부품 선택"),
+        makeResult(3.0, "부품 준비"),
+        makeResult(5.0, "도장"),
+        makeResult(6.0, "도장"),
+        makeResult(7.0, "도장"),
+        makeResult(8.0, "도장"),
+    ]
+    builder = WorkUnitBuilder()
+    units = builder.build(frameResults=results)
+    assert len(units) == 2
+    assert units[1]["title"] == "도장"
+
+
+# ─── 중복 타이틀 구분 ────────────────────────────────────────────────────────────
+
+def test_extractMainMaterial_returnsShortestCandidate():
+    materials = ["자동차 범퍼 프레임", "리어 범퍼", "클립"]
+    result = _extractMainMaterial(materials)
+    assert result == "클립"
+
+def test_extractMainMaterial_emptyReturnsEmpty():
+    assert _extractMainMaterial([]) == ""
+
+def test_build_disambiguatesDuplicateTitles():
+    # 동일 타이틀 "조립"이 두 번 등장 → 자재로 구분
+    results = [
+        makeResult(0.0, "조립", materials=["리어 범퍼"]),
+        makeResult(1.0, "조립", materials=["리어 범퍼"]),
+        makeResult(2.0, "조립", materials=["리어 범퍼"]),
+        makeResult(3.0, "조립", materials=["리어 범퍼"]),
+        makeResult(5.0, "도장"),
+        makeResult(6.0, "도장"),
+        makeResult(7.0, "도장"),
+        makeResult(8.0, "도장"),
+        makeResult(10.0, "조립", materials=["도어 패널"]),
+        makeResult(11.0, "조립", materials=["도어 패널"]),
+        makeResult(12.0, "조립", materials=["도어 패널"]),
+        makeResult(13.0, "조립", materials=["도어 패널"]),
+    ]
+    builder = WorkUnitBuilder()
+    units = builder.build(frameResults=results)
+    titles = [u["title"] for u in units]
+    # 두 "조립" 유닛의 타이틀이 서로 달라야 함
+    assembly_titles = [t for t in titles if "조립" in t]
+    assert len(assembly_titles) == 2
+    assert assembly_titles[0] != assembly_titles[1]

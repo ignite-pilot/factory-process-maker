@@ -37,12 +37,22 @@ async def uploadVideo(file: UploadFile = File(...), db: Session = Depends(getDb)
 
 @router.get("/videos", response_model=list[VideoResponse])
 def listVideos(db: Session = Depends(getDb)):
-    return (
+    videos = (
         db.query(Video)
         .filter(Video.deletedYn == "N")
         .order_by(Video.createdAt.desc())
         .all()
     )
+    result = []
+    for video in videos:
+        data = VideoResponse.model_validate(video)
+        data.workUnitCount = (
+            db.query(WorkUnit)
+            .filter(WorkUnit.videoId == video.id, WorkUnit.deletedYn == "N")
+            .count()
+        )
+        result.append(data)
+    return result
 
 
 @router.get("/videos/{videoId}", response_model=VideoResponse)

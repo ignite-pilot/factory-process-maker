@@ -4,8 +4,27 @@ from app.services.claudeAnalyzer import FrameAnalysisResult
 SIMILARITY_THRESHOLD = 0.6
 MIN_DURATION_SECONDS = 3.0
 
+# 동일한 의미로 취급할 유의어 그룹
+SYNONYM_GROUPS: list[set[str]] = [
+    {"부품 준비", "부품 취출", "부품 선택", "부품 픽업", "소재 준비", "자재 준비"},
+    {"운반", "부품 운반", "이동", "작업 이동", "공정 이동"},
+    {"검사", "부품 검사", "외관 검사", "품질 검사"},
+    {"적재", "부품 적재", "완제품 적재"},
+    {"체결", "볼트 체결", "너트 체결", "클립 체결"},
+]
+
+
+def _synonymKey(title: str) -> str:
+    """유의어 그룹 내 대표 타이틀 반환. 해당 없으면 원본 반환."""
+    for group in SYNONYM_GROUPS:
+        if title in group:
+            return min(group)  # 정렬상 첫 번째를 대표키로
+    return title
+
 
 def _titleSimilarity(a: str, b: str) -> float:
+    if _synonymKey(a) == _synonymKey(b):
+        return 1.0
     return SequenceMatcher(None, a, b).ratio()
 
 
@@ -40,17 +59,28 @@ def _groupSimilarity(groupA: list[FrameAnalysisResult], groupB: list[FrameAnalys
     return titleScore * 0.6 + equipmentScore * 0.2 + materialScore * 0.2
 
 
+def _extractMainMaterial(materials: list[str]) -> str:
+    """자재 목록에서 가장 짧고 구체적인 핵심 부품명 추출."""
+    if not materials:
+        return ""
+    candidates = sorted(materials, key=lambda m: len(m))
+    for m in candidates:
+        if 2 <= len(m) <= 10:
+            return m
+    return candidates[0]
+
+
 class WorkUnitBuilder:
     def build(self, frameResults: list[FrameAnalysisResult]) -> list[dict]:
         if not frameResults:
             return []
 
-        # 1단계: 연속된 동일 타이틀 그룹핑
+        # 1단계: 연속된 동일 타이틀(유의어 포함) 그룹핑
         groups: list[list[FrameAnalysisResult]] = []
         currentGroup: list[FrameAnalysisResult] = [frameResults[0]]
 
         for result in frameResults[1:]:
-            if result.title == currentGroup[-1].title:
+            if _synonymKey(result.title) == _synonymKey(currentGroup[-1].title):
                 currentGroup.append(result)
             else:
                 groups.append(currentGroup)
@@ -63,7 +93,12 @@ class WorkUnitBuilder:
         # 3단계: 최소 3초 미만 그룹 인접 병합
         groups = self._mergeShortGroups(groups)
 
-        return [self._groupToUnit(g, i + 1) for i, g in enumerate(groups)]
+        units = [self._groupToUnit(g, i + 1) for i, g in enumerate(groups)]
+
+        # 4단계: 중복 타이틀 자재 기반 구분
+        units = self._disambiguateTitles(units)
+
+        return units
 
     def _mergeSimilarGroups(self, groups: list[list[FrameAnalysisResult]]) -> list[list[FrameAnalysisResult]]:
         if len(groups) <= 1:
@@ -92,7 +127,6 @@ class WorkUnitBuilder:
                 if len(groups) == 1:
                     break
 
-                # 더 유사한 인접 그룹 선택
                 if i == 0:
                     mergeWith = 1
                 elif i == len(groups) - 1:
@@ -121,11 +155,17 @@ class WorkUnitBuilder:
             if r.description:
                 descriptions.append(r.description)
 
+        # 유의어면 그룹 내 가장 많이 등장한 타이틀로 대표 타이틀 결정
+        titleCounts: dict[str, int] = {}
+        for r in group:
+            titleCounts[r.title] = titleCounts.get(r.title, 0) + 1
+        representativeTitle = max(titleCounts, key=lambda t: titleCounts[t])
+
         startTime = group[0].frameTime
         endTime = group[-1].frameTime
         return {
             "sequence": sequence,
-            "title": group[0].title,
+            "title": representativeTitle,
             "startTime": startTime,
             "endTime": endTime,
             "duration": endTime - startTime,
@@ -135,3 +175,22 @@ class WorkUnitBuilder:
             "startFrame": round(startTime),
             "endFrame": round(endTime),
         }
+
+    def _disambiguateTitles(self, units: list[dict]) -> list[dict]:
+        """동일 타이틀이 여러 작업에 있을 때 자재 기반으로 구분."""
+        titleCount: dict[str, int] = {}
+        for u in units:
+            titleCount[u["title"]] = titleCount.get(u["title"], 0) + 1
+
+        duplicates = {t for t, c in titleCount.items() if c > 1}
+        if not duplicates:
+            return units
+
+        for u in units:
+            if u["title"] not in duplicates:
+                continue
+            mainMaterial = _extractMainMaterial(u["materials"])
+            if mainMaterial and mainMaterial not in u["title"]:
+                u["title"] = f"{mainMaterial} {u['title']}"
+
+        return units

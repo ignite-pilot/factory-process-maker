@@ -31,3 +31,11 @@ export function useStartAnalysis() {
       queryClient.invalidateQueries({ queryKey: ["videos", videoId] }),
   })
 }
+
+export function useDeleteVideo() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (videoId: number) => videosApi.delete(videoId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["videos"] }),
+  })
+}

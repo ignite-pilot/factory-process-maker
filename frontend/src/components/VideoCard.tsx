@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import type { VideoResponse } from "../api/client"
-import { useStartAnalysis } from "../hooks/useVideos"
+import { useDeleteVideo, useStartAnalysis } from "../hooks/useVideos"
 
 const statusLabel: Record<string, string> = {
   pending: "대기중",
@@ -19,6 +19,7 @@ const statusColor: Record<string, string> = {
 export default function VideoCard({ video }: { video: VideoResponse }) {
   const navigate = useNavigate()
   const startAnalysis = useStartAnalysis()
+  const deleteVideo = useDeleteVideo()
 
   const handleAnalyze = () => {
     startAnalysis.mutate(video.id, {
@@ -28,13 +29,29 @@ export default function VideoCard({ video }: { video: VideoResponse }) {
 
   const handleEdit = () => navigate(`/videos/${video.id}/edit`)
 
+  const handleDelete = () => {
+    if (confirm("이 동영상을 삭제하시겠습니까?")) {
+      deleteVideo.mutate(video.id)
+    }
+  }
+
   return (
     <div className="border rounded-lg p-4 flex flex-col gap-2 bg-white shadow-sm">
       <div className="flex justify-between items-center">
         <span className="font-medium truncate">{video.fileName}</span>
-        <span className={`text-xs px-2 py-1 rounded-full ${statusColor[video.status]}`}>
-          {statusLabel[video.status]}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`text-xs px-2 py-1 rounded-full ${statusColor[video.status]}`}>
+            {statusLabel[video.status]}
+          </span>
+          <button
+            onClick={handleDelete}
+            disabled={deleteVideo.isPending}
+            className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+            title="삭제"
+          >
+            🗑
+          </button>
+        </div>
       </div>
       {video.duration && (
         <span className="text-sm text-gray-500">{video.duration.toFixed(1)}초</span>
