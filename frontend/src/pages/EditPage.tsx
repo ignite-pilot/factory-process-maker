@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import VideoPlayer from "../components/VideoPlayer"
 import type { VideoPlayerHandle } from "../components/VideoPlayer"
 import WorkUnitList from "../components/WorkUnitList"
@@ -18,6 +18,7 @@ type LeftPanelMode = "range-selector" | "creator" | "editor"
 
 export default function EditPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const videoId = Number(id)
 
   const { data: video } = useVideoDetail(videoId)
@@ -102,7 +103,15 @@ export default function EditPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 h-screen flex flex-col">
-      <h1 className="text-xl font-bold mb-4 truncate">{video.fileName}</h1>
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={() => navigate("/")}
+          className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0"
+        >
+          ← 목록으로
+        </button>
+        <h1 className="text-xl font-bold truncate">{video.fileName}</h1>
+      </div>
       <div className="flex gap-6 flex-1 min-h-0">
         <div className="w-1/2 sticky top-6 self-start">
           <VideoPlayer
