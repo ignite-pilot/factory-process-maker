@@ -2,6 +2,7 @@ from difflib import SequenceMatcher
 from app.services.claudeAnalyzer import FrameAnalysisResult
 
 SIMILARITY_THRESHOLD = 0.6
+MIN_DURATION_SECONDS = 3.0
 
 
 def _titleSimilarity(a: str, b: str) -> float:
@@ -15,6 +16,12 @@ def _jaccardSimilarity(a: list[str], b: list[str]) -> float:
     if not setA or not setB:
         return 0.0
     return len(setA & setB) / len(setA | setB)
+
+
+def _groupDuration(group: list[FrameAnalysisResult]) -> float:
+    if len(group) < 2:
+        return 0.0
+    return group[-1].frameTime - group[0].frameTime
 
 
 def _groupSimilarity(groupA: list[FrameAnalysisResult], groupB: list[FrameAnalysisResult]) -> float:
@@ -53,6 +60,9 @@ class WorkUnitBuilder:
         # 2단계: 유사도 기반 인접 그룹 병합
         groups = self._mergeSimilarGroups(groups)
 
+        # 3단계: 최소 3초 미만 그룹 인접 병합
+        groups = self._mergeShortGroups(groups)
+
         return [self._groupToUnit(g, i + 1) for i, g in enumerate(groups)]
 
     def _mergeSimilarGroups(self, groups: list[list[FrameAnalysisResult]]) -> list[list[FrameAnalysisResult]]:
@@ -67,6 +77,38 @@ class WorkUnitBuilder:
             else:
                 merged.append(group)
         return merged
+
+    def _mergeShortGroups(self, groups: list[list[FrameAnalysisResult]]) -> list[list[FrameAnalysisResult]]:
+        """3초 미만 그룹을 더 유사한 인접 그룹과 반복 병합"""
+        if len(groups) <= 1:
+            return groups
+
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(groups)):
+                if _groupDuration(groups[i]) >= MIN_DURATION_SECONDS:
+                    continue
+                if len(groups) == 1:
+                    break
+
+                # 더 유사한 인접 그룹 선택
+                if i == 0:
+                    mergeWith = 1
+                elif i == len(groups) - 1:
+                    mergeWith = i - 1
+                else:
+                    simPrev = _groupSimilarity(groups[i - 1], groups[i])
+                    simNext = _groupSimilarity(groups[i], groups[i + 1])
+                    mergeWith = i - 1 if simPrev >= simNext else i + 1
+
+                lo, hi = min(i, mergeWith), max(i, mergeWith)
+                merged = groups[lo] + groups[hi]
+                groups = groups[:lo] + [merged] + groups[hi + 1:]
+                changed = True
+                break
+
+        return groups
 
     def _groupToUnit(self, group: list[FrameAnalysisResult], sequence: int) -> dict:
         allEquipments = set()
