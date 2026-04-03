@@ -31,6 +31,7 @@ export default function EditPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [panelMode, setPanelMode] = useState<LeftPanelMode>("range-selector")
   const [currentTime, setCurrentTime] = useState(0)
+  const [creatorRange, setCreatorRange] = useState<{ start: number; end: number } | null>(null)
   const playRangeEndRef = useRef<number | null>(null)
 
   const selectedWorkUnit = workUnits?.find(wu => wu.id === selectedId) ?? null
@@ -49,6 +50,16 @@ export default function EditPage() {
     const last = workUnits?.[workUnits.length - 1]
     videoPlayerRef.current?.seekOnly(last?.endTime ?? 0)
     setSelectedId(null)
+    setCreatorRange(null)
+    setPanelMode("creator")
+  }
+
+  const handleAddGap = (startTime: number, endTime: number) => {
+    playRangeEndRef.current = null
+    videoPlayerRef.current?.pause()
+    videoPlayerRef.current?.seekOnly(startTime)
+    setSelectedId(null)
+    setCreatorRange({ start: startTime, end: endTime })
     setPanelMode("creator")
   }
 
@@ -87,10 +98,12 @@ export default function EditPage() {
 
   const handleCreatorCreate = (body: Parameters<typeof createWorkUnit.mutate>[0]) => {
     createWorkUnit.mutate(body)
+    setCreatorRange(null)
     setPanelMode("range-selector")
   }
 
   const handleCreatorCancel = () => {
+    setCreatorRange(null)
     setPanelMode("range-selector")
   }
 
@@ -133,8 +146,8 @@ export default function EditPage() {
           ) : panelMode === "creator" ? (
             <WorkUnitCreator
               nextSequence={nextSequence}
-              defaultStartTime={defaultStartTime}
-              defaultEndTime={defaultEndTime}
+              defaultStartTime={creatorRange?.start ?? defaultStartTime}
+              defaultEndTime={creatorRange?.end ?? defaultEndTime}
               duration={video.duration ?? 0}
               currentTime={currentTime}
               onSeek={handleSeek}
@@ -159,6 +172,7 @@ export default function EditPage() {
             onSelect={handleSelect}
             onDelete={(id) => deleteWorkUnit.mutate(id)}
             onAdd={handleAdd}
+            onAddGap={handleAddGap}
             onPlayRange={handlePlayRange}
           />
         </div>

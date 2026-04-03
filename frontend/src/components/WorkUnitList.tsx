@@ -1,5 +1,9 @@
+import { useState } from "react"
 import type { WorkUnitResponse } from "../api/client"
 import WorkUnitItem from "./WorkUnitItem"
+import GapCard from "./GapCard"
+
+const GAP_THRESHOLD_SECONDS = 1
 
 interface WorkUnitListProps {
   workUnits: WorkUnitResponse[]
@@ -7,10 +11,52 @@ interface WorkUnitListProps {
   onSelect: (id: number) => void
   onDelete: (id: number) => void
   onAdd: () => void
+  onAddGap: (startTime: number, endTime: number) => void
   onPlayRange: (startTime: number, endTime: number) => void
 }
 
-export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete, onAdd, onPlayRange }: WorkUnitListProps) {
+export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete, onAdd, onAddGap, onPlayRange }: WorkUnitListProps) {
+  const [dismissedGaps, setDismissedGaps] = useState<Set<string>>(new Set())
+
+  const dismissGap = (key: string) => {
+    setDismissedGaps(prev => new Set([...prev, key]))
+  }
+
+  const sorted = [...workUnits].sort((a, b) => a.startTime - b.startTime)
+
+  const items: React.ReactNode[] = []
+  sorted.forEach((wu, i) => {
+    items.push(
+      <WorkUnitItem
+        key={wu.id}
+        workUnit={wu}
+        isSelected={wu.id === selectedId}
+        onSelect={onSelect}
+        onDelete={onDelete}
+        onPlayRange={onPlayRange}
+      />
+    )
+
+    if (i < sorted.length - 1) {
+      const next = sorted[i + 1]
+      const gapStart = wu.endTime
+      const gapEnd = next.startTime
+      const gapKey = `${gapStart}-${gapEnd}`
+      if (gapEnd - gapStart > GAP_THRESHOLD_SECONDS && !dismissedGaps.has(gapKey)) {
+        items.push(
+          <GapCard
+            key={gapKey}
+            startTime={gapStart}
+            endTime={gapEnd}
+            onPlayRange={onPlayRange}
+            onAdd={onAddGap}
+            onDismiss={() => dismissGap(gapKey)}
+          />
+        )
+      }
+    }
+  })
+
   return (
     <div className="flex flex-col gap-3 h-full">
       <div className="flex justify-between items-center">
@@ -25,16 +71,7 @@ export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete
       {workUnits.length === 0 && (
         <p className="text-gray-400 text-sm text-center py-6">작업 단위가 없습니다.</p>
       )}
-      {workUnits.map(wu => (
-        <WorkUnitItem
-          key={wu.id}
-          workUnit={wu}
-          isSelected={wu.id === selectedId}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onPlayRange={onPlayRange}
-        />
-      ))}
+      {items}
     </div>
   )
 }
