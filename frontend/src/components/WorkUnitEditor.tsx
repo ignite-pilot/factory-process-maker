@@ -170,6 +170,20 @@ export default function WorkUnitEditor({
         />
       </div>
 
+      {/* 조이스틱 탐색 버튼 */}
+      <div className="flex items-center justify-center gap-1 mb-2">
+        {([ [-10, "◀◀ 10s"], [-3, "◀ 3s"], [-1, "◀ 1s"], [1, "1s ▶"], [3, "3s ▶"], [10, "10s ▶▶"] ] as [number, string][]).map(([delta, label]) => (
+          <button
+            key={delta}
+            title={`${delta > 0 ? "+" : ""}${delta}초`}
+            onClick={() => onSeek(Math.max(0, Math.min(duration, currentTime + delta)))}
+            className="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-2 py-1 rounded"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* 시간 입력 */}
       <div className="flex items-center gap-2 mb-3">
         <span className="bg-green-900 text-green-300 text-xs px-1.5 py-0.5 rounded">S</span>
