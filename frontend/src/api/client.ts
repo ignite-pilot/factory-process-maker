@@ -25,6 +25,8 @@ export interface VideoResponse {
   status: "pending" | "analyzing" | "done" | "failed"
   createdAt: string
   workUnitCount: number
+  processName: string | null
+  description: string | null
 }
 
 export interface WorkUnitFrameResponse {
@@ -75,9 +77,11 @@ export interface WorkUnitCreateRequest {
 export const videosApi = {
   list: () => apiClient.get<VideoResponse[]>("/videos").then(r => r.data),
   get: (id: number) => apiClient.get<VideoResponse>(`/videos/${id}`).then(r => r.data),
-  upload: (file: File) => {
+  upload: (file: File, processName: string, description?: string) => {
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("processName", processName)
+    if (description) formData.append("description", description)
     return apiClient.post<VideoResponse>("/videos/upload", formData).then(r => r.data)
   },
   startAnalysis: (id: number) =>

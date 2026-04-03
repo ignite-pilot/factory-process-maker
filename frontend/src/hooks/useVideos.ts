@@ -18,7 +18,8 @@ export function useVideoDetail(id: number) {
 export function useUploadVideo() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => videosApi.upload(file),
+    mutationFn: ({ file, processName, description }: { file: File; processName: string; description?: string }) =>
+      videosApi.upload(file, processName, description),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["videos"] }),
   })
 }
