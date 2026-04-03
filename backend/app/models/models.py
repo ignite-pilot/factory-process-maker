@@ -17,6 +17,8 @@ class Video(Base):
     status: Mapped[str] = mapped_column(
         Enum("pending", "analyzing", "done", "failed"), default="pending"
     )
+    processName: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     deletedYn: Mapped[str] = mapped_column(String(1), default="N")
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     createdBy: Mapped[str | None] = mapped_column(String(100), nullable=True)

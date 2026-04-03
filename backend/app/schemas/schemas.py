@@ -10,6 +10,8 @@ class VideoResponse(BaseModel):
     status: str
     createdAt: datetime
     workUnitCount: int = 0
+    processName: str | None = None
+    description: str | None = None
 
     model_config = {"from_attributes": True}
 
