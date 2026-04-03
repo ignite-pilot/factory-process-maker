@@ -2,7 +2,7 @@ import os
 import shutil
 import time
 from datetime import datetime
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from app.core.config import UPLOAD_DIR
 from app.core.database import getDb
@@ -18,7 +18,12 @@ _progressStore: dict[int, dict] = {}
 
 
 @router.post("/videos/upload", response_model=VideoResponse)
-async def uploadVideo(file: UploadFile = File(...), db: Session = Depends(getDb)):
+async def uploadVideo(
+    file: UploadFile = File(...),
+    processName: str | None = Form(None),
+    description: str | None = Form(None),
+    db: Session = Depends(getDb),
+):
     allowed = {".mp4", ".mov", ".avi"}
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in allowed:
@@ -28,7 +33,15 @@ async def uploadVideo(file: UploadFile = File(...), db: Session = Depends(getDb)
     with open(savePath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    video = Video(fileName=file.filename, filePath=savePath, status="pending")
+    defaultProcessName = os.path.splitext(file.filename)[0] if not processName else processName
+
+    video = Video(
+        fileName=file.filename,
+        filePath=savePath,
+        status="pending",
+        processName=defaultProcessName,
+        description=description,
+    )
     db.add(video)
     db.commit()
     db.refresh(video)
