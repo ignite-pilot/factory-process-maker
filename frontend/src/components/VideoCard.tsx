@@ -38,7 +38,15 @@ export default function VideoCard({ video }: { video: VideoResponse }) {
   return (
     <div className="border rounded-lg p-4 flex flex-col gap-2 bg-white shadow-sm">
       <div className="flex justify-between items-center">
-        <span className="font-medium truncate">{video.fileName}</span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-medium truncate">{video.fileName}</span>
+          {video.processName && (
+            <p className="text-xs text-gray-500 truncate">{video.processName}</p>
+          )}
+          {video.description && (
+            <p className="text-xs text-gray-400 truncate">{video.description}</p>
+          )}
+        </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className={`text-xs px-2 py-1 rounded-full ${statusColor[video.status]}`}>
             {statusLabel[video.status]}

@@ -25,6 +25,8 @@ const mockVideo: VideoResponse = {
   status: "pending",
   createdAt: "2026-03-31T00:00:00Z",
   workUnitCount: 0,
+  processName: null,
+  description: null,
 }
 
 describe("VideoCard", () => {
@@ -211,6 +213,26 @@ describe("VideoCard", () => {
 
     fireEvent.click(screen.getByTitle("삭제"))
     expect(deleteMutate).not.toHaveBeenCalled()
+  })
+
+  it("processName이 있으면 파일명 아래에 표시해야 함", () => {
+    const videoWithProcess = { ...mockVideo, processName: "RG3 리어 범퍼 조립", description: null }
+    render(
+      <BrowserRouter>
+        <VideoCard video={videoWithProcess} />
+      </BrowserRouter>
+    )
+    expect(screen.getByText("RG3 리어 범퍼 조립")).toBeInTheDocument()
+  })
+
+  it("description이 있으면 표시해야 함", () => {
+    const videoWithDesc = { ...mockVideo, processName: "공정A", description: "리어 범퍼 조립 공정 설명" }
+    render(
+      <BrowserRouter>
+        <VideoCard video={videoWithDesc} />
+      </BrowserRouter>
+    )
+    expect(screen.getByText("리어 범퍼 조립 공정 설명")).toBeInTheDocument()
   })
 
   it("분석 중일 때 분석 시작 버튼이 비활성화되어야 함", () => {
