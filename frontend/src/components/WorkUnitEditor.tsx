@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { WorkUnitResponse, WorkUnitUpdateRequest } from "../api/client"
 
 interface WorkUnitEditorProps {
@@ -39,15 +39,48 @@ export default function WorkUnitEditor({
   const [equipments, setEquipments] = useState((workUnit.equipments ?? []).join(", "))
   const [materials, setMaterials] = useState((workUnit.materials ?? []).join(", "))
 
+  const [isDragging, setIsDragging] = useState(false)
+  const timelineRef = useRef<HTMLDivElement>(null)
+
   const startRatio = duration > 0 ? startTime / duration : 0
   const endRatio = duration > 0 ? endTime / duration : 0
   const currentRatio = duration > 0 ? currentTime / duration : 0
 
-  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  function ratioToTime(clientX: number, rect: DOMRect): number {
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    return Math.round(ratio * duration * 10) / 10
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    const time = Math.round(ratio * duration * 10) / 10
+    const time = ratioToTime(e.clientX, rect)
+    setStartTime(time)
+    setEndTime(time)
+    setIsDragging(true)
     onSeek(time)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const time = ratioToTime(e.clientX, rect)
+    const clamped = Math.max(startTime, time)
+    setEndTime(clamped)
+    onSeek(clamped)
+  }
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const time = ratioToTime(e.clientX, rect)
+    const clamped = Math.max(startTime, time)
+    setEndTime(clamped)
+    onSeek(clamped)
+    setIsDragging(false)
+  }
+
+  const handleMouseLeave = () => {
+    if (isDragging) setIsDragging(false)
   }
 
   const handleStartInput = (value: string) => {
@@ -89,10 +122,17 @@ export default function WorkUnitEditor({
 
       {/* 타임라인 */}
       <div
+        ref={timelineRef}
         data-testid="editor-timeline"
-        onClick={handleTimelineClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         className="relative h-7 bg-slate-900 rounded border border-slate-600 cursor-crosshair mb-2 overflow-hidden select-none"
       >
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs pointer-events-none">
+          {isDragging ? "드래그=끝점" : "클릭·드래그=구간 설정"}
+        </span>
         <div
           className="absolute top-0 w-px h-full bg-slate-400 opacity-50 pointer-events-none"
           style={{ left: `${currentRatio * 100}%` }}
