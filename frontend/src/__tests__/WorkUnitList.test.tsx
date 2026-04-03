@@ -27,12 +27,14 @@ describe("WorkUnitList", () => {
   let onDelete: (id: number) => void
   let onAdd: () => void
   let onAddGap: (startTime: number, endTime: number) => void
+  let onExtendWorkUnit: (id: number, patch: { startTime?: number; endTime?: number }) => void
   let onPlayRange: (startTime: number, endTime: number) => void
 
   beforeEach(() => {
     onDelete = vi.fn()
     onAdd = vi.fn()
     onAddGap = vi.fn()
+    onExtendWorkUnit = vi.fn()
     onPlayRange = vi.fn()
   })
 
@@ -43,6 +45,7 @@ describe("WorkUnitList", () => {
     onDelete,
     onAdd,
     onAddGap,
+    onExtendWorkUnit,
     onPlayRange,
   })
 
@@ -123,16 +126,33 @@ describe("WorkUnitList", () => {
     expect(vi.mocked(onAddGap)).toHaveBeenCalledWith(10, 25)
   })
 
-  it("미정의 작업 카드의 삭제 버튼 클릭 시 카드가 사라져야 함", () => {
+  it("미정의 작업 카드의 ✕ 버튼 클릭 시 카드가 사라져야 함", () => {
     const workUnits = [
       makeWorkUnit({ id: 1, sequence: 1, title: "작업 A", startTime: 0, endTime: 10 }),
       makeWorkUnit({ id: 2, sequence: 2, title: "작업 B", startTime: 20, endTime: 30 }),
     ]
-    const { getAllByText } = render(<WorkUnitList {...defaultProps(workUnits)} />)
-    // 삭제 버튼이 2개(작업 단위 + 갭 카드) 있을 때 갭 카드의 삭제 클릭
-    const deleteButtons = getAllByText("삭제")
-    // 갭 카드는 두 번째 위치에 있음
-    fireEvent.click(deleteButtons[1])
+    render(<WorkUnitList {...defaultProps(workUnits)} />)
+    fireEvent.click(screen.getByText("✕"))
     expect(screen.queryByText("미정의 작업")).not.toBeInTheDocument()
+  })
+
+  it("위 작업 붙이기 클릭 시 onExtendWorkUnit을 이전 작업 id와 endTime으로 호출해야 함", () => {
+    const workUnits = [
+      makeWorkUnit({ id: 10, sequence: 1, title: "작업 A", startTime: 0, endTime: 10 }),
+      makeWorkUnit({ id: 20, sequence: 2, title: "작업 B", startTime: 25, endTime: 35 }),
+    ]
+    render(<WorkUnitList {...defaultProps(workUnits)} />)
+    fireEvent.click(screen.getByText("↑ 위 작업 붙이기"))
+    expect(vi.mocked(onExtendWorkUnit)).toHaveBeenCalledWith(10, { endTime: 25 })
+  })
+
+  it("아래 작업 붙이기 클릭 시 onExtendWorkUnit을 다음 작업 id와 startTime으로 호출해야 함", () => {
+    const workUnits = [
+      makeWorkUnit({ id: 10, sequence: 1, title: "작업 A", startTime: 0, endTime: 10 }),
+      makeWorkUnit({ id: 20, sequence: 2, title: "작업 B", startTime: 25, endTime: 35 }),
+    ]
+    render(<WorkUnitList {...defaultProps(workUnits)} />)
+    fireEvent.click(screen.getByText("↓ 아래 작업 붙이기"))
+    expect(vi.mocked(onExtendWorkUnit)).toHaveBeenCalledWith(20, { startTime: 10 })
   })
 })

@@ -8,6 +8,8 @@ describe("GapCard", () => {
     endTime: 20,
     onPlayRange: vi.fn(),
     onAdd: vi.fn(),
+    onAttachPrev: vi.fn(),
+    onAttachNext: vi.fn(),
     onDismiss: vi.fn(),
   }
 
@@ -40,10 +42,24 @@ describe("GapCard", () => {
     expect(onAdd).toHaveBeenCalledWith(10, 20)
   })
 
-  it("삭제 버튼 클릭 시 onDismiss를 호출해야 함", () => {
+  it("위 작업 붙이기 버튼 클릭 시 onAttachPrev를 호출해야 함", () => {
+    const onAttachPrev = vi.fn()
+    render(<GapCard {...defaultProps} onAttachPrev={onAttachPrev} />)
+    fireEvent.click(screen.getByText("↑ 위 작업 붙이기"))
+    expect(onAttachPrev).toHaveBeenCalledTimes(1)
+  })
+
+  it("아래 작업 붙이기 버튼 클릭 시 onAttachNext를 호출해야 함", () => {
+    const onAttachNext = vi.fn()
+    render(<GapCard {...defaultProps} onAttachNext={onAttachNext} />)
+    fireEvent.click(screen.getByText("↓ 아래 작업 붙이기"))
+    expect(onAttachNext).toHaveBeenCalledTimes(1)
+  })
+
+  it("✕ 버튼 클릭 시 onDismiss를 호출해야 함", () => {
     const onDismiss = vi.fn()
     render(<GapCard {...defaultProps} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByText("삭제"))
+    fireEvent.click(screen.getByText("✕"))
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 })

@@ -85,6 +85,22 @@ export default function EditPage() {
     }
   }
 
+  const handleExtendWorkUnit = (id: number, patch: { startTime?: number; endTime?: number }) => {
+    const wu = workUnits?.find(w => w.id === id)
+    if (!wu) return
+    updateWorkUnit.mutate({
+      id,
+      body: {
+        title: wu.title,
+        startTime: patch.startTime ?? wu.startTime,
+        endTime: patch.endTime ?? wu.endTime,
+        description: wu.description ?? undefined,
+        equipments: wu.equipments ?? [],
+        materials: wu.materials ?? [],
+      },
+    })
+  }
+
   const handleEditSave = (id: number, body: Parameters<typeof updateWorkUnit.mutate>[0]["body"]) => {
     updateWorkUnit.mutate({ id, body })
     setSelectedId(null)
@@ -173,6 +189,7 @@ export default function EditPage() {
             onDelete={(id) => deleteWorkUnit.mutate(id)}
             onAdd={handleAdd}
             onAddGap={handleAddGap}
+            onExtendWorkUnit={handleExtendWorkUnit}
             onPlayRange={handlePlayRange}
           />
         </div>

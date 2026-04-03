@@ -12,10 +12,11 @@ interface WorkUnitListProps {
   onDelete: (id: number) => void
   onAdd: () => void
   onAddGap: (startTime: number, endTime: number) => void
+  onExtendWorkUnit: (id: number, patch: { startTime?: number; endTime?: number }) => void
   onPlayRange: (startTime: number, endTime: number) => void
 }
 
-export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete, onAdd, onAddGap, onPlayRange }: WorkUnitListProps) {
+export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete, onAdd, onAddGap, onExtendWorkUnit, onPlayRange }: WorkUnitListProps) {
   const [dismissedGaps, setDismissedGaps] = useState<Set<string>>(new Set())
 
   const dismissGap = (key: string) => {
@@ -50,6 +51,8 @@ export default function WorkUnitList({ workUnits, selectedId, onSelect, onDelete
             endTime={gapEnd}
             onPlayRange={onPlayRange}
             onAdd={onAddGap}
+            onAttachPrev={() => onExtendWorkUnit(wu.id, { endTime: gapEnd })}
+            onAttachNext={() => onExtendWorkUnit(next.id, { startTime: gapStart })}
             onDismiss={() => dismissGap(gapKey)}
           />
         )
