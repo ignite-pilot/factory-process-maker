@@ -170,18 +170,37 @@ export default function WorkUnitEditor({
         />
       </div>
 
-      {/* 조이스틱 탐색 버튼 */}
-      <div className="flex items-center justify-center gap-1 mb-2">
-        {([ [-10, "◀◀ 10s"], [-3, "◀ 3s"], [-1, "◀ 1s"], [1, "1s ▶"], [3, "3s ▶"], [10, "10s ▶▶"] ] as [number, string][]).map(([delta, label]) => (
-          <button
-            key={delta}
-            title={`${delta > 0 ? "+" : ""}${delta}초`}
-            onClick={() => onSeek(Math.max(0, Math.min(duration, currentTime + delta)))}
-            className="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-2 py-1 rounded"
-          >
-            {label}
-          </button>
-        ))}
+      {/* 조이스틱 스크러버 */}
+      <div
+        data-testid="scrubber"
+        className="relative h-6 mb-2 cursor-ew-resize select-none"
+        onMouseDown={e => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          const seek = (clientX: number) => {
+            const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+            onSeek(Math.round(ratio * duration * 10) / 10)
+          }
+          seek(e.clientX)
+          const onMove = (ev: MouseEvent) => seek(ev.clientX)
+          const onUp = () => {
+            window.removeEventListener("mousemove", onMove)
+            window.removeEventListener("mouseup", onUp)
+          }
+          window.addEventListener("mousemove", onMove)
+          window.addEventListener("mouseup", onUp)
+        }}
+      >
+        {/* 트랙 */}
+        <div className="absolute top-1/2 left-0 right-0 h-1 -translate-y-1/2 bg-slate-600 rounded" />
+        {/* 삼각형 썸 */}
+        <div
+          className="absolute top-0 -translate-x-1/2 pointer-events-none"
+          style={{ left: `${currentRatio * 100}%` }}
+        >
+          <svg width="16" height="24" viewBox="0 0 16 24">
+            <polygon points="8,4 15,20 1,20" fill="#60a5fa" />
+          </svg>
+        </div>
       </div>
 
       {/* 시간 입력 */}
