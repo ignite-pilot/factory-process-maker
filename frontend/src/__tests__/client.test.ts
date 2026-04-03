@@ -256,7 +256,9 @@ describe('VideoResponse 타입 검증', () => {
         duration: null,
         status,
         createdAt: '2026-03-31T00:00:00Z',
-    workUnitCount: 0,
+        workUnitCount: 0,
+        processName: null,
+        description: null,
       }
       expect(video.status).toBe(status)
     })
