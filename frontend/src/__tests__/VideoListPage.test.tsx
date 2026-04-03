@@ -185,17 +185,28 @@ describe("VideoListPage", () => {
       </BrowserRouter>
     )
 
+    // 업로드 버튼 클릭 → 모달 오픈 → 공정 이름 입력 → 파일 선택 → 업로드
+    fireEvent.click(screen.getByText("동영상 업로드"))
+
+    fireEvent.change(screen.getByPlaceholderText("공정 이름을 입력하세요"), {
+      target: { value: "공정A" },
+    })
+
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = new File(["video content"], "test-video.mp4", { type: "video/mp4" })
-
     fireEvent.change(fileInput, { target: { files: [file] } })
 
+    fireEvent.click(screen.getByText("업로드"))
+
     await waitFor(() => {
-      expect(mockMutate).toHaveBeenCalledWith(file)
+      expect(mockMutate).toHaveBeenCalledWith(
+        { file, processName: "공정A", description: undefined },
+        expect.any(Object),
+      )
     })
   })
 
-  it("업로드 중일 때 버튼이 비활성화되어야 함", () => {
+  it("업로드 중일 때 모달 내 업로드 버튼이 비활성화되어야 함", () => {
     vi.mocked(useVideosModule).useVideoList.mockReturnValue({
       data: [],
       isLoading: false,
@@ -212,11 +223,12 @@ describe("VideoListPage", () => {
       </BrowserRouter>
     )
 
+    fireEvent.click(screen.getByText("동영상 업로드"))
     const uploadButton = screen.getByText("업로드 중...") as HTMLButtonElement
     expect(uploadButton.disabled).toBe(true)
   })
 
-  it("올바른 파일 형식을 필터링해야 함", () => {
+  it("모달 내 파일 입력이 올바른 형식을 필터링해야 함", () => {
     vi.mocked(useVideosModule).useVideoList.mockReturnValue({
       data: [],
       isLoading: false,
@@ -233,6 +245,7 @@ describe("VideoListPage", () => {
       </BrowserRouter>
     )
 
+    fireEvent.click(screen.getByText("동영상 업로드"))
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     expect(fileInput.accept).toBe(".mp4,.mov,.avi")
   })
