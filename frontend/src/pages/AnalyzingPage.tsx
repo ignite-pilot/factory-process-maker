@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { useAnalysisPolling } from "../hooks/useAnalysis"
 
 const STEPS = [
@@ -21,6 +21,7 @@ function formatSeconds(seconds: number): string {
 
 export default function AnalyzingPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const videoId = Number(id)
   const status = useAnalysisPolling(videoId)
 
@@ -30,7 +31,14 @@ export default function AnalyzingPage() {
   const percent = totalFrames > 0 ? Math.round((processedFrames / totalFrames) * 100) : 0
 
   return (
-    <div className="max-w-xl mx-auto p-6 mt-20 text-center">
+    <div className="max-w-xl mx-auto p-6">
+      <button
+        onClick={() => navigate("/")}
+        className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-16"
+      >
+        ← 목록으로
+      </button>
+      <div className="text-center">
       <div className="text-4xl mb-6">⚙️</div>
       <h2 className="text-xl font-semibold mb-6">공정 분석 중</h2>
 
@@ -85,6 +93,7 @@ export default function AnalyzingPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   )
 }
