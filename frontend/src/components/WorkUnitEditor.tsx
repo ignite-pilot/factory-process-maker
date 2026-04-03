@@ -34,6 +34,8 @@ export default function WorkUnitEditor({
 }: WorkUnitEditorProps) {
   const [startTime, setStartTime] = useState(workUnit.startTime)
   const [endTime, setEndTime] = useState(workUnit.endTime)
+  const [startInput, setStartInput] = useState(toMMSS(workUnit.startTime))
+  const [endInput, setEndInput] = useState(toMMSS(workUnit.endTime))
   const [title, setTitle] = useState(workUnit.title)
   const [description, setDescription] = useState(workUnit.description ?? "")
   const [equipments, setEquipments] = useState((workUnit.equipments ?? []).join(", "))
@@ -41,6 +43,17 @@ export default function WorkUnitEditor({
 
   const [isDragging, setIsDragging] = useState(false)
   const timelineRef = useRef<HTMLDivElement>(null)
+
+  // 드래그로 시간이 바뀌면 입력 필드 문자열도 동기화
+  function applyStart(time: number) {
+    setStartTime(time)
+    setStartInput(toMMSS(time))
+  }
+
+  function applyEnd(time: number) {
+    setEndTime(time)
+    setEndInput(toMMSS(time))
+  }
 
   const startRatio = duration > 0 ? startTime / duration : 0
   const endRatio = duration > 0 ? endTime / duration : 0
@@ -54,8 +67,8 @@ export default function WorkUnitEditor({
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const time = ratioToTime(e.clientX, rect)
-    setStartTime(time)
-    setEndTime(time)
+    applyStart(time)
+    applyEnd(time)
     setIsDragging(true)
     onSeek(time)
   }
@@ -65,7 +78,7 @@ export default function WorkUnitEditor({
     const rect = e.currentTarget.getBoundingClientRect()
     const time = ratioToTime(e.clientX, rect)
     const clamped = Math.max(startTime, time)
-    setEndTime(clamped)
+    applyEnd(clamped)
     onSeek(clamped)
   }
 
@@ -74,7 +87,7 @@ export default function WorkUnitEditor({
     const rect = e.currentTarget.getBoundingClientRect()
     const time = ratioToTime(e.clientX, rect)
     const clamped = Math.max(startTime, time)
-    setEndTime(clamped)
+    applyEnd(clamped)
     onSeek(clamped)
     setIsDragging(false)
   }
@@ -83,20 +96,26 @@ export default function WorkUnitEditor({
     if (isDragging) setIsDragging(false)
   }
 
-  const handleStartInput = (value: string) => {
-    const parsed = fromMMSS(value)
-    if (parsed === null || parsed < 0 || parsed > duration) return
-    setStartTime(parsed)
-    if (endTime < parsed) setEndTime(parsed)
-    onSeek(parsed)
+  const handleStartBlur = () => {
+    const parsed = fromMMSS(startInput)
+    if (parsed !== null && parsed >= 0 && parsed <= duration) {
+      applyStart(parsed)
+      if (endTime < parsed) applyEnd(parsed)
+      onSeek(parsed)
+    } else {
+      setStartInput(toMMSS(startTime)) // 유효하지 않으면 되돌리기
+    }
   }
 
-  const handleEndInput = (value: string) => {
-    const parsed = fromMMSS(value)
-    if (parsed === null || parsed < 0 || parsed > duration) return
-    const clamped = Math.max(parsed, startTime)
-    setEndTime(clamped)
-    onSeek(clamped)
+  const handleEndBlur = () => {
+    const parsed = fromMMSS(endInput)
+    if (parsed !== null && parsed >= 0 && parsed <= duration) {
+      const clamped = Math.max(parsed, startTime)
+      applyEnd(clamped)
+      onSeek(clamped)
+    } else {
+      setEndInput(toMMSS(endTime)) // 유효하지 않으면 되돌리기
+    }
   }
 
   const handleSave = () => {
@@ -156,16 +175,20 @@ export default function WorkUnitEditor({
         <span className="bg-green-900 text-green-300 text-xs px-1.5 py-0.5 rounded">S</span>
         <input
           type="text"
-          value={toMMSS(startTime)}
-          onChange={e => handleStartInput(e.target.value)}
+          value={startInput}
+          onChange={e => setStartInput(e.target.value)}
+          onBlur={handleStartBlur}
+          onKeyDown={e => e.key === "Enter" && handleStartBlur()}
           className="w-16 bg-slate-900 border border-green-700 rounded px-2 py-1 text-green-300 text-xs text-center"
         />
         <span className="text-slate-500 text-xs">~</span>
         <span className="bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded">E</span>
         <input
           type="text"
-          value={toMMSS(endTime)}
-          onChange={e => handleEndInput(e.target.value)}
+          value={endInput}
+          onChange={e => setEndInput(e.target.value)}
+          onBlur={handleEndBlur}
+          onKeyDown={e => e.key === "Enter" && handleEndBlur()}
           className="w-16 bg-slate-900 border border-red-700 rounded px-2 py-1 text-red-300 text-xs text-center"
         />
         <span className="text-slate-400 text-xs">({Math.round(endTime - startTime)}초)</span>
