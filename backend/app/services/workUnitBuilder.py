@@ -1,8 +1,11 @@
 from difflib import SequenceMatcher
 from app.services.claudeAnalyzer import FrameAnalysisResult
 
-SIMILARITY_THRESHOLD = 0.6
-MIN_DURATION_SECONDS = 3.0
+SIMILARITY_THRESHOLD = 0.55
+MIN_DURATION_SECONDS = 5.0
+
+# 동사 카테고리 — 같은 카테고리면 부품명이 달라도 높은 유사도
+BASE_VERBS = ["조립", "검사", "운반", "부품 준비", "체결", "적재", "이동"]
 
 # 동일한 의미로 취급할 유의어 그룹
 SYNONYM_GROUPS: list[set[str]] = [
@@ -22,9 +25,21 @@ def _synonymKey(title: str) -> str:
     return title
 
 
+def _extractBaseVerb(title: str) -> str:
+    """타이틀에서 동사 부분 추출. 예: '리어 범퍼 조립' → '조립'"""
+    for verb in BASE_VERBS:
+        if title == verb or title.endswith(verb):
+            return verb
+    return title
+
+
 def _titleSimilarity(a: str, b: str) -> float:
     if _synonymKey(a) == _synonymKey(b):
         return 1.0
+    verbA = _extractBaseVerb(a)
+    verbB = _extractBaseVerb(b)
+    if verbA == verbB and verbA in BASE_VERBS:
+        return 0.85
     return SequenceMatcher(None, a, b).ratio()
 
 
