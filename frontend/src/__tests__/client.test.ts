@@ -19,6 +19,7 @@ const mockVideoList: VideoResponse[] = [
     duration: 120,
     status: 'done',
     createdAt: '2026-03-31T00:00:00Z',
+    workUnitCount: 0,
   },
   {
     id: 2,
@@ -27,6 +28,7 @@ const mockVideoList: VideoResponse[] = [
     duration: null,
     status: 'pending',
     createdAt: '2026-03-31T01:00:00Z',
+    workUnitCount: 0,
   },
 ]
 
@@ -95,6 +97,7 @@ describe('videosApi', () => {
         duration: null,
         status: 'pending',
         createdAt: '2026-03-31T02:00:00Z',
+    workUnitCount: 0,
       }
       mockAxios.onPost('/videos/upload').reply(200, uploadedVideo)
 
@@ -253,6 +256,7 @@ describe('VideoResponse 타입 검증', () => {
         duration: null,
         status,
         createdAt: '2026-03-31T00:00:00Z',
+    workUnitCount: 0,
       }
       expect(video.status).toBe(status)
     })
@@ -266,6 +270,7 @@ describe('VideoResponse 타입 검증', () => {
       duration: null,
       status: 'pending',
       createdAt: '2026-03-31T00:00:00Z',
+    workUnitCount: 0,
     }
     const videoWithDuration: VideoResponse = {
       ...videoWithNull,

@@ -20,6 +20,7 @@ const mockVideos: VideoResponse[] = [
     duration: 120.5,
     status: "pending",
     createdAt: "2026-03-31T00:00:00Z",
+    workUnitCount: 0,
   },
   {
     id: 2,
@@ -28,6 +29,7 @@ const mockVideos: VideoResponse[] = [
     duration: 180.0,
     status: "done",
     createdAt: "2026-03-31T00:00:00Z",
+    workUnitCount: 3,
   },
 ]
 

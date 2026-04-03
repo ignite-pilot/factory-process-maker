@@ -24,6 +24,7 @@ const mockVideo: VideoResponse = {
   duration: 120.5,
   status: "pending",
   createdAt: "2026-03-31T00:00:00Z",
+  workUnitCount: 0,
 }
 
 describe("VideoCard", () => {

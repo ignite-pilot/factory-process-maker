@@ -10,6 +10,7 @@ export interface AnalysisJobResponse {
   totalFrames: number | null
   processedFrames: number | null
   estimatedSecondsLeft: number | null
+  progress?: number
 }
 
 export const apiClient = axios.create({
@@ -23,6 +24,7 @@ export interface VideoResponse {
   duration: number | null
   status: "pending" | "analyzing" | "done" | "failed"
   createdAt: string
+  workUnitCount: number
 }
 
 export interface WorkUnitFrameResponse {
@@ -82,6 +84,8 @@ export const videosApi = {
     apiClient.post(`/videos/${id}/analyze`).then(r => r.data),
   getStatus: (id: number) =>
     apiClient.get<AnalysisJobResponse>(`/videos/${id}/status`).then(r => r.data),
+  delete: (id: number) =>
+    apiClient.delete(`/videos/${id}`).then(r => r.data),
   listWorkUnits: (id: number) =>
     apiClient.get<WorkUnitResponse[]>(`/videos/${id}/work-units`).then(r => r.data),
   createWorkUnit: (id: number, body: WorkUnitCreateRequest) =>

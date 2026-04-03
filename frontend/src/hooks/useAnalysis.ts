@@ -1,7 +1,8 @@
 import { useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
-import { videosApi, AnalysisJobResponse } from "../api/client"
+import { videosApi } from "../api/client"
+import type { AnalysisJobResponse } from "../api/client"
 
 export function useAnalysisPolling(videoId: number): AnalysisJobResponse | undefined {
   const queryClient = useQueryClient()
