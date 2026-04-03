@@ -37,15 +37,35 @@ async def uploadVideo(file: UploadFile = File(...), db: Session = Depends(getDb)
 
 @router.get("/videos", response_model=list[VideoResponse])
 def listVideos(db: Session = Depends(getDb)):
-    return db.query(Video).order_by(Video.createdAt.desc()).all()
+    return (
+        db.query(Video)
+        .filter(Video.deletedYn == "N")
+        .order_by(Video.createdAt.desc())
+        .all()
+    )
 
 
 @router.get("/videos/{videoId}", response_model=VideoResponse)
 def getVideo(videoId: int, db: Session = Depends(getDb)):
-    video = db.get(Video, videoId)
+    video = db.query(Video).filter(Video.id == videoId, Video.deletedYn == "N").first()
     if not video:
         raise HTTPException(status_code=404, detail="동영상을 찾을 수 없습니다")
     return video
+
+
+@router.delete("/videos/{videoId}")
+def deleteVideo(videoId: int, db: Session = Depends(getDb)):
+    video = db.query(Video).filter(Video.id == videoId, Video.deletedYn == "N").first()
+    if not video:
+        raise HTTPException(status_code=404, detail="동영상을 찾을 수 없습니다")
+    video.deletedYn = "Y"
+    video.updatedAt = datetime.utcnow()
+    # 연관 WorkUnit도 Soft Delete
+    db.query(WorkUnit).filter(WorkUnit.videoId == videoId).update(
+        {"deletedYn": "Y", "updatedAt": datetime.utcnow()}
+    )
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/videos/{videoId}/analyze", response_model=AnalysisJobResponse)
@@ -112,7 +132,7 @@ def getAnalysisStatus(videoId: int, db: Session = Depends(getDb)):
 def listWorkUnits(videoId: int, db: Session = Depends(getDb)):
     return (
         db.query(WorkUnit)
-        .filter(WorkUnit.videoId == videoId)
+        .filter(WorkUnit.videoId == videoId, WorkUnit.deletedYn == "N")
         .order_by(WorkUnit.sequence)
         .all()
     )

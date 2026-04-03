@@ -77,9 +77,10 @@ def reorderWorkUnits(body: WorkUnitReorderRequest, db: Session = Depends(getDb))
 
 @router.delete("/work-units/{workUnitId}")
 def deleteWorkUnit(workUnitId: int, db: Session = Depends(getDb)):
-    workUnit = db.get(WorkUnit, workUnitId)
+    workUnit = db.query(WorkUnit).filter(WorkUnit.id == workUnitId, WorkUnit.deletedYn == "N").first()
     if not workUnit:
         raise HTTPException(status_code=404, detail="작업 단위를 찾을 수 없습니다")
-    db.delete(workUnit)
+    workUnit.deletedYn = "Y"
+    workUnit.updatedAt = datetime.utcnow()
     db.commit()
     return {"ok": True}

@@ -7,7 +7,21 @@ class Base(DeclarativeBase):
 
 
 def createEngine(databaseUrl: str):
-    return create_engine(databaseUrl, pool_pre_ping=True)
+    # SQLite는 pool 옵션 미지원 → NullPool 사용
+    if databaseUrl.startswith("sqlite"):
+        from sqlalchemy.pool import StaticPool
+        return create_engine(
+            databaseUrl,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    return create_engine(
+        databaseUrl,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=0,
+        pool_recycle=3600,
+    )
 
 
 # 앱 실행 시 main.py에서 초기화

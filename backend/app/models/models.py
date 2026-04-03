@@ -17,7 +17,11 @@ class Video(Base):
     status: Mapped[str] = mapped_column(
         Enum("pending", "analyzing", "done", "failed"), default="pending"
     )
+    deletedYn: Mapped[str] = mapped_column(String(1), default="N")
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    createdBy: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updatedBy: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     analysisJobs: Mapped[list["AnalysisJob"]] = relationship(back_populates="video")
     workUnits: Mapped[list["WorkUnit"]] = relationship(back_populates="video")
@@ -53,8 +57,11 @@ class WorkUnit(Base):
     startFrame: Mapped[int | None] = mapped_column(Integer, nullable=True)
     endFrame: Mapped[int | None] = mapped_column(Integer, nullable=True)
     isManuallyEdited: Mapped[bool] = mapped_column(Boolean, default=False)
+    deletedYn: Mapped[str] = mapped_column(String(1), default="N")
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    createdBy: Mapped[str | None] = mapped_column(String(100), nullable=True)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updatedBy: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     video: Mapped["Video"] = relationship(back_populates="workUnits")
     frames: Mapped[list["WorkUnitFrame"]] = relationship(back_populates="workUnit")
