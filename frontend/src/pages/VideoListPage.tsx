@@ -1,15 +1,18 @@
-import { useRef } from "react"
+import { useState } from "react"
 import VideoCard from "../components/VideoCard"
+import UploadModal from "../components/UploadModal"
 import { useUploadVideo, useVideoList } from "../hooks/useVideos"
 
 export default function VideoListPage() {
   const { data: videos, isLoading } = useVideoList()
   const uploadVideo = useUploadVideo()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showModal, setShowModal] = useState(false)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) uploadVideo.mutate(file)
+  const handleUpload = (file: File, processName: string, description: string) => {
+    uploadVideo.mutate(
+      { file, processName, description: description || undefined },
+      { onSuccess: () => setShowModal(false) },
+    )
   }
 
   return (
@@ -17,19 +20,11 @@ export default function VideoListPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">공정 동영상 분석</h1>
         <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadVideo.isPending}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
-          {uploadVideo.isPending ? "업로드 중..." : "동영상 업로드"}
+          동영상 업로드
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".mp4,.mov,.avi"
-          className="hidden"
-          onChange={handleFileChange}
-        />
       </div>
 
       {isLoading && <p className="text-gray-500">불러오는 중...</p>}
@@ -45,6 +40,14 @@ export default function VideoListPage() {
           <VideoCard key={video.id} video={video} />
         ))}
       </div>
+
+      {showModal && (
+        <UploadModal
+          onClose={() => setShowModal(false)}
+          onUpload={handleUpload}
+          isPending={uploadVideo.isPending}
+        />
+      )}
     </div>
   )
 }
