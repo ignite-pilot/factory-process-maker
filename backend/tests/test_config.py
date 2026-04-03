@@ -30,12 +30,12 @@ def test_getDatabaseUrlBuildsCorrectUrl():
         "DB_PORT": 3306,
         "DB_USER": "admin",
         "DB_PASSWORD": "secret",
-        "DB_NAME": "process_maker",
+        "DB_NAME": "factory_process_maker",
     }
     with patch("app.core.config.getSecretValue", return_value=mockSecret):
         from app.core.config import getDatabaseUrl
         url = getDatabaseUrl()
-        assert url == "mysql+pymysql://admin:secret@db.example.com:3306/process_maker"
+        assert url == "mysql+pymysql://admin:secret@db.example.com:3306/factory_process_maker"
 
 
 def test_getDatabaseUrlUsesDefaultPort():
@@ -52,7 +52,7 @@ def test_getDatabaseUrlUsesDefaultPort():
 
 
 def test_getDatabaseUrlUsesDefaultDbname():
-    """getDatabaseUrl이 dbname 미제공 시 기본값 process_maker를 사용한다."""
+    """getDatabaseUrl이 dbname 미제공 시 기본값 factory_process_maker를 사용한다."""
     mockSecret = {
         "DB_HOST": "db.example.com",
         "DB_USER": "admin",
@@ -61,4 +61,4 @@ def test_getDatabaseUrlUsesDefaultDbname():
     with patch("app.core.config.getSecretValue", return_value=mockSecret):
         from app.core.config import getDatabaseUrl
         url = getDatabaseUrl()
-        assert url.endswith("/process_maker")
+        assert url.endswith("/factory_process_maker")
